@@ -42,7 +42,7 @@ jobs:
       if: ${{ matrix.gr }}
     - name: Make Virtual Environment
       run: |
-        virtualenv dev-env
+        virtualenv --system-site-packages dev-env
     - name: WFGen Enhance venv
       run: cp scripts/wfgen_env.sh dev-env/bin/
 
