@@ -443,7 +443,7 @@ fixed by hitting tab to refresh the line.
 
 ## How to reference:
 ```
-@misc{wggen,
+@misc{wfgen,
   Title = {{WFGen: Waveform Generator and Truth Tracker}},
   Author = {{Clark IV, W. H.}},
   Year = {2024},
