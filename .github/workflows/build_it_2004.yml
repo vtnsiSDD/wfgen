@@ -1,0 +1,77 @@
+name: attempt install 20.04
+
+on:
+  push:
+    branches:
+    - main
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  installable_no_gr:
+    name: install without gr
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install APT Dependencies
+        run: |
+          sudo apt update && sudo apt-get install -y libfftw3-dev libzmq3-dev \
+          libboost-{chrono,filesystem,serialization,thread,program-options}-dev \
+          libusb-1.0-0-dev libpthread-stubs0-dev \
+          python3-dev python3-pip python3-virtualenv \
+          libczmq-dev && sudo apt-get install --no-install-recommends libuhd-dev
+      - name: Make Virtual Environment
+        run: |
+          virtualenv dev-env
+      - name: WFGen Enhance venv
+        run: cp scripts/wfgen_env.sh dev-env/bin/
+
+      - name: builder
+        run: source dev-env/bin/wfgen_env.sh && make -j4
+
+      - name: installer
+        run: source dev-env/bin/wfgen_env.sh && make -j4 install
+      - name: CLI installing
+        run: source dev-env/bin/wfgen_env.sh && pip install -e .
+
+  installable_w_gr:
+    name: install with gr
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install APT Dependencies
+        run: |
+          sudo apt update && sudo apt-get install -y libfftw3-dev libzmq3-dev \
+          libboost-{chrono,filesystem,serialization,thread,program-options}-dev \
+          libusb-1.0-0-dev libpthread-stubs0-dev \
+          python3-dev python3-pip python3-virtualenv \
+          libczmq-dev libuhd-dev gnuradio-dev
+      - name: Make Virtual Environment
+        run: |
+          virtualenv dev-env
+      - name: WFGen Enhance venv
+        run: cp scripts/wfgen_env.sh dev-env/bin/
+
+      - name: builder
+        run: source dev-env/bin/wfgen_env.sh && make -j4
+
+      - name: installer
+        run: source dev-env/bin/wfgen_env.sh && make -j4 install
+      - name: CLI installing
+        run: source dev-env/bin/wfgen_env.sh && pip install -e .
+
+

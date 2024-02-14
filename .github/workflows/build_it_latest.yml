@@ -1,6 +1,9 @@
-name: attempt install
+name: attempt install latest
 
-on: [push]
+on:
+  push:
+    branches:
+    - main
 
 defaults:
   run:
