@@ -12,7 +12,10 @@ defaults:
 jobs:
   installable_no_gr:
     name: install without gr
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: ./
@@ -40,11 +43,14 @@ jobs:
       - name: installer
         run: source dev-env/bin/wfgen_env.sh && make -j4 install
       - name: CLI installing
-        run: source dev-env/bin/wfgen_env.sh && pip install -e .
+        run: source dev-env/bin/wfgen_env.sh && pip install .
 
   installable_w_gr:
     name: install with gr
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: ./
@@ -72,6 +78,6 @@ jobs:
       - name: installer
         run: source dev-env/bin/wfgen_env.sh && make -j4 install
       - name: CLI installing
-        run: source dev-env/bin/wfgen_env.sh && pip install -e .
+        run: source dev-env/bin/wfgen_env.sh && pip install .
 
 
