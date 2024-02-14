@@ -27,28 +27,12 @@ jobs:
           virtualenv dev-env \
           && echo "export LD_LIBRARY_PATH=${PWD}/lib\${LD_LIBRARIY:+:\$LD_LIBRARY_PATH}" >> dev-env/bin/activate \
           && echo "export PYBOMBS_PREFIX=/usr" >> dev-env/bin/activate
-  build:
-    name: build c++ apps
-    needs: setup
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./
-    steps:
+
       - name: source env
         run: source dev-env/bin/activate
       - name: builder
         run: make -j4
-  install:
-    name: install c++ apps
-    needs: build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./
-    steps:
-      - name: source env
-        run: source dev-env/bin/activate
+
       - name: installer
         run: make -j4 install
 
