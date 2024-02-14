@@ -44,7 +44,7 @@ jobs:
       run: |
         virtualenv --system-site-packages dev-env && mkdir audio_folder
     - name: WFGen Enhance venv
-      run: cp scripts/{wfgen_env.sh} dev-env/bin/
+      run: cp scripts/wfgen_env.sh dev-env/bin/
 
     - name: builder
       run: source dev-env/bin/wfgen_env.sh && make -j4
