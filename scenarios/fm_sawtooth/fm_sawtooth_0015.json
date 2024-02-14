@@ -1,0 +1,15 @@
+{
+  "device": null,
+  "mode": "hopper",
+  "profile": "fm_sawtooth",
+  "freq_lo": 2010000000,
+  "freq_hi": 2120000000,
+  "rate": 10000000,
+  "bw": 1000000,
+  "idle": 0.1,
+  "dwell": 0.1,
+  "absence": 0.01,
+  "duration": 15,
+  "time_start": 280,
+  "time_stop": 295
+}

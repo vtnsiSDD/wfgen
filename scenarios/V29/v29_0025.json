@@ -1,0 +1,15 @@
+{
+  "device": null,
+  "mode": "hopper",
+  "profile": "V29",
+  "freq_lo": 3350000000,
+  "freq_hi": 3450000000,
+  "rate": 10000000,
+  "bw": 1000000,
+  "idle": 0.1,
+  "dwell": 0.1,
+  "absence": 0.01,
+  "duration": 15,
+  "time_start": 480,
+  "time_stop": 495
+}

@@ -1,0 +1,62 @@
+{
+    "server_addresses": [
+        "127.0.0.1"
+    ],
+    "server_ports": [
+        50000
+    ],
+    "server_ssh":[
+        false
+    ],
+    "configs": [
+        "noise/*"
+    ],
+    "runtime": 60.0,
+    "toggles":{
+        "shuffle_timing": false,
+        "random_pick_overlapping_waveforms": false,
+        "divide_configs": true
+    },
+    "parameters":{
+        "gain": 70,
+	"bw": {
+	    "min": 50e3,
+	    "max": 1e6,
+	    "dist": "log_uniform"
+	},
+	"duration": 0.75
+    },
+    "notes":[
+        {"parameter_dict":[
+            "This implies a random decision is being made with the dist"
+        ]},
+        {"parameter_list":[
+            "This implies a random choice is being made from the list"
+        ]},
+        {"dist":[
+            "The 'dist' is locked to uniform right now",
+            "The 'kind' is locked to static right now"
+        ]},
+        {"kind":[
+            "static means parameter is constant for full exectuion of signal ",
+            "dynamic means the exectuion should resolve for every burst; ",
+            "however, this should be set to static always"
+        ]},
+        {"toggles":[
+            {"shuffle_timing": [
+                "Mix up the timings rather keep them exactly as defined ",
+                "in any of the configs"
+            ]},
+            {"random_pick_overlapping_waveforms": [
+                "If there aren't enough radios to properly replay the script, ",
+                "randomly choose from conflicting waveforms, otherwise just choose ",
+                "the first one."
+            ]},
+            {"divide_configs": [
+                "Default operation is that every radio gets every config that is not ",
+                "device specified, but setting this to true, the configs are distributed ",
+                "rather than sent to every radio."
+            ]}
+        ]}
+    ]
+}

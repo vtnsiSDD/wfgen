@@ -1,0 +1,15 @@
+{
+  "device": null,
+  "mode": "hopper",
+  "profile": "fsk32",
+  "freq_lo": 2300000000,
+  "freq_hi": 2340000000,
+  "rate": 10000000,
+  "bw": 1000000,
+  "idle": 0.1,
+  "dwell": 0.1,
+  "absence": 0.01,
+  "duration": 15,
+  "time_start": 320,
+  "time_stop": 335
+}

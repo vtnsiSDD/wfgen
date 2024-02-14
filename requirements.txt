@@ -1,0 +1,11 @@
+################################
+# Required
+################################
+pyzmq
+pyyaml
+numpy
+scipy
+matplotlib
+pydub
+tqdm
+psutil

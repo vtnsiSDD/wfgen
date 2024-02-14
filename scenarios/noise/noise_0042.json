@@ -1,0 +1,15 @@
+{
+  "device": null,
+  "mode": "hopper",
+  "profile": "noise",
+  "freq_lo": 5580000000,
+  "freq_hi": 5700000000,
+  "rate": 10000000,
+  "bw": 1000000,
+  "idle": 0.1,
+  "dwell": 0.1,
+  "absence": 0.01,
+  "duration": 15,
+  "time_start": 820,
+  "time_stop": 835
+}

@@ -1,0 +1,15 @@
+{
+  "device": null,
+  "mode": "hopper",
+  "profile": "ask2",
+  "freq_lo": 1000000000,
+  "freq_hi": 1140000000,
+  "rate": 10000000,
+  "bw": 1000000,
+  "idle": 0.1,
+  "dwell": 0.1,
+  "absence": 0.01,
+  "duration": 15,
+  "time_start": 140,
+  "time_stop": 155
+}
