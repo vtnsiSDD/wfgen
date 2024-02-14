@@ -438,3 +438,18 @@ fixed by hitting tab to refresh the line.
 - Precision roundoff in re-running scripts
 
 - Required directory `/data/local/wfgen_reports` is hardcoded and not created during install
+
+
+
+## How to reference:
+```
+@inproceedings{wggen,
+  Title = {{WFGen: Waveform Generator and Truth Tracker}},
+  Author = {W. H. Clark IV},
+  Booktitle = {},
+  Year = {2024},
+  Location = {Blacksburg, USA},
+  Month = {February},
+  Url = {https://github.com/vtnsiSDD/wfgen}
+}
+```
