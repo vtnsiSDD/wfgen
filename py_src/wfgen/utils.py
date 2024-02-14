@@ -390,7 +390,7 @@ def wav_disect(wav_file):
     return segments,splits,data
 
 
-if have_pygr:
+if have_pygr():
     import pmt
     from gnuradio import gr
     def parse_pmt_header(serial):

@@ -1,0 +1,58 @@
+name: attempt install
+
+on: [push]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    name: setup dependencies
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Install APT Dependencies
+        run: |
+          apt-get install -y libfftw3-dev libzmq uhd-host \
+          libboost-{chrono,filesystem,serialization,thread,program-options}-dev \
+          libusb-1.0-0-dev libpthread-stubs0-dev \
+          python3-dev python3-pip python3-virtualenv
+      - name: Make Virtual Environment
+        run: |
+          virtualenv dev-env
+          && echo "export LD_LIBRARY_PATH=${PWD}/lib\${LD_LIBRARIY:+:\$LD_LIBRARY_PATH}" >> dev-env/bin/activate \
+          && echo "export PYBOMBS_PREFIX=/usr" >> dev-env/bin/activate
+  build:
+    name: build c++ apps
+    needs: setup
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - name: source env
+        run: source dev-env/bin/activate
+      - name: builder
+        run: make -j4
+  install:
+    name: install c++ apps
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+      - name: source env
+        run: source dev-env/bin/activate
+      - name: installer
+        run: make -j4 install
+
+
+    
+
+
