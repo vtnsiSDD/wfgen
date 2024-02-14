@@ -3,7 +3,7 @@ name: attempt install on ubuntu*
 on:
   push:
     branches:
-    - ci-dev
+    - main
 
 defaults:
   run:
