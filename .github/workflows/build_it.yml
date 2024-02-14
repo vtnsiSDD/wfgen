@@ -36,6 +36,8 @@ jobs:
 
       - name: installer
         run: source dev-env/bin/wfgen_env.sh && make -j4 install
+      - name: CLI installing
+        run: source dev-env/bin/wfgen_env.sh && pip install -e .
 
   installable_w_gr:
     name: install with gr
@@ -66,5 +68,7 @@ jobs:
 
       - name: installer
         run: source dev-env/bin/wfgen_env.sh && make -j4 install
+      - name: CLI installing
+        run: source dev-env/bin/wfgen_env.sh && pip install -e .
 
 
