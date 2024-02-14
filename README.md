@@ -443,10 +443,9 @@ fixed by hitting tab to refresh the line.
 
 ## How to reference:
 ```
-@inproceedings{wggen,
+@misc{wggen,
   Title = {{WFGen: Waveform Generator and Truth Tracker}},
-  Author = {W. H. Clark IV},
-  Booktitle = {},
+  Author = {{Clark IV, W. H.}},
   Year = {2024},
   Location = {Blacksburg, USA},
   Month = {February},
