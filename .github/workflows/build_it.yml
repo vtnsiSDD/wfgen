@@ -1,4 +1,4 @@
-name: attempt install latest
+name: attempt install on ubuntu*
 
 on:
   push:
@@ -10,10 +10,11 @@ defaults:
     shell: bash
 
 jobs:
-  installable_no_gr:
+  installable_checking:
     name: install without gr
     strategy:
       matrix:
+        gr: [true, false]
         os: [ubuntu-latest, ubuntu-20.04]
     runs-on: ${{ matrix.os }}
     defaults:
@@ -30,7 +31,15 @@ jobs:
         libboost-{chrono,filesystem,serialization,thread,program-options}-dev \
         libusb-1.0-0-dev libpthread-stubs0-dev \
         python3-dev python3-pip python3-virtualenv \
-        libczmq-dev && sudo apt-get install --no-install-recommends libuhd-dev
+        libczmq-dev
+    - name: Conditional APT Dependencies (w/o gr)
+      run: |
+        sudo apt-get install - y --no-install-recommends libuhd-dev
+      if: ${{ ! matrix.gr }}
+    - name: Conditional APT Dependencies (w/ gr)
+      run: |
+        sudo apt-get install - y libuhd-dev gnuradio-dev
+      if: ${{ matrix.gr }}
     - name: Make Virtual Environment
       run: |
         virtualenv dev-env
@@ -44,40 +53,3 @@ jobs:
       run: source dev-env/bin/wfgen_env.sh && make -j4 install
     - name: CLI installing
       run: source dev-env/bin/wfgen_env.sh && pip install .
-
-  installable_w_gr:
-    name: install with gr
-    strategy:
-      matrix:
-        os: [ubuntu-latest, ubuntu-20.04]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: ./
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Install APT Dependencies
-      run: |
-        sudo apt update && sudo apt-get install -y libfftw3-dev libzmq3-dev \
-        libboost-{chrono,filesystem,serialization,thread,program-options}-dev \
-        libusb-1.0-0-dev libpthread-stubs0-dev \
-        python3-dev python3-pip python3-virtualenv \
-        libczmq-dev libuhd-dev gnuradio-dev
-    - name: Make Virtual Environment
-      run: |
-        virtualenv dev-env
-    - name: WFGen Enhance venv
-      run: cp scripts/wfgen_env.sh dev-env/bin/
-
-    - name: builder
-      run: source dev-env/bin/wfgen_env.sh && make -j4
-
-    - name: installer
-      run: source dev-env/bin/wfgen_env.sh && make -j4 install
-    - name: CLI installing
-      run: source dev-env/bin/wfgen_env.sh && pip install .
-
-
