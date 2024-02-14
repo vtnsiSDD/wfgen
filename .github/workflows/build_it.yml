@@ -44,18 +44,15 @@ jobs:
       run: |
         virtualenv --system-site-packages dev-env && mkdir audio_folder
     - name: WFGen Enhance venv
-      run: |
-        cp scripts/{wfgen_env.sh,proc_query.py} dev-env/bin/ && \
-        source dev-env/bin/activate && \
-        pip install psutil
+      run: cp scripts/{wfgen_env.sh} dev-env/bin/
 
     - name: builder
-      run: AUDIO_FOLDER=audio_folder source dev-env/bin/wfgen_env.sh && make -j4
+      run: source dev-env/bin/wfgen_env.sh && make -j4
 
     - name: installer
-      run: AUDIO_FOLDER=audio_folder source dev-env/bin/wfgen_env.sh && make -j4 install
+      run: source dev-env/bin/wfgen_env.sh && make -j4 install
     - name: CLI installing
-      run: AUDIO_FOLDER=audio_folder source dev-env/bin/wfgen_env.sh && pip install .
+      run: source dev-env/bin/wfgen_env.sh && pip install .
 
     - name: importer
       run: |
