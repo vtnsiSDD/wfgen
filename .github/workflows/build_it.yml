@@ -28,13 +28,11 @@ jobs:
           && echo "export LD_LIBRARY_PATH=${PWD}/lib\${LD_LIBRARIY:+:\$LD_LIBRARY_PATH}" >> dev-env/bin/activate \
           && echo "export PYBOMBS_PREFIX=/usr" >> dev-env/bin/activate
 
-      - name: source env
-        run: source dev-env/bin/activate
       - name: builder
-        run: make -j4
+        run: source dev-env/bin/activate && make -j4
 
       - name: installer
-        run: make -j4 install
+        run: source dev-env/bin/activate && make -j4 install
 
 
     
