@@ -42,20 +42,22 @@ jobs:
       if: ${{ matrix.gr }}
     - name: Make Virtual Environment
       run: |
-        virtualenv --system-site-packages dev-env && mkdir audio_folder
+        cd ../ && \
+        virtualenv --system-site-packages dev-env && \
+        mkdir audio_folder
 
     - name: CLI installing
-      run: source dev-env/bin/activate && echo "A\n$(ls)" && echo "B\n$(ls ..)" && pip install .
+      run: source ../dev-env/bin/activate && echo "A\n$(ls)" && echo "B\n$(ls ..)" && pip install .
 
     - name: builder
-      run: source dev-env/bin/wfgen_env.sh && make -j4
+      run: source ../dev-env/bin/wfgen_env.sh && make -j4
 
     - name: installer
-      run: source dev-env/bin/wfgen_env.sh && make -j4 install
+      run: source ../dev-env/bin/wfgen_env.sh && make -j4 install
 
     - name: importer
       run: |
-        AUDIO_FOLDER=audio_folder source dev-env/bin/wfgen_env.sh && \
+        AUDIO_FOLDER=../audio_folder source ../dev-env/bin/wfgen_env.sh && \
         function check(){ return \
         $( python3 -c "import wfgen;print(1-int(\"{0}\".format(wfgen.have_pygr()).lower() == \"$1\"))" ); } \
         && check ${{ matrix.gr }}
