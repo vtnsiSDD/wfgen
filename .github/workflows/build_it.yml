@@ -11,7 +11,7 @@ defaults:
 
 jobs:
   installable_checking:
-    name: install without gr
+    name: install with gr ${{ matrix.os }}
     strategy:
       matrix:
         gr: [true, false]
@@ -34,11 +34,11 @@ jobs:
         libczmq-dev
     - name: Conditional APT Dependencies (w/o gr)
       run: |
-        sudo apt-get install - y --no-install-recommends libuhd-dev
+        sudo apt-get install -y --no-install-recommends libuhd-dev
       if: ${{ ! matrix.gr }}
     - name: Conditional APT Dependencies (w/ gr)
       run: |
-        sudo apt-get install - y libuhd-dev gnuradio-dev
+        sudo apt-get install -y libuhd-dev gnuradio-dev
       if: ${{ matrix.gr }}
     - name: Make Virtual Environment
       run: |
