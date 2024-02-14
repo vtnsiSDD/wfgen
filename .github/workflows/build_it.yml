@@ -45,7 +45,7 @@ jobs:
         virtualenv --system-site-packages dev-env && mkdir audio_folder
 
     - name: CLI installing
-      run: source dev-env/bin/activate && echo $(pwd) && pip install .
+      run: source dev-env/bin/activate && echo "A\n$(ls)" && echo "B\n$(ls ..)" && pip install .
 
     - name: builder
       run: source dev-env/bin/wfgen_env.sh && make -j4
