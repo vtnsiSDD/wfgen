@@ -11,7 +11,7 @@ defaults:
 
 jobs:
   installable_checking:
-    name: install with gr ${{ matrix.os }}
+    name: install on ${{ matrix.os }} with gr ${{ matrix.gr }}
     strategy:
       matrix:
         gr: [true, false]
