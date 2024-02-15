@@ -166,10 +166,10 @@ X.X.X.20 : 50000
 ```
 Client:
 # (assuming ports are open between client/servers)
-client.py -conn X.X.X.5 50000 0 --conn X.X.X.8 50000 0 --conn X.X.X.20 50000 0 --verbose
+wfgen_cli --conn X.X.X.5 50000 0 --conn X.X.X.8 50000 0 --conn X.X.X.20 50000 0 --verbose
 |||||||
 # (assuming only ssh is open between client/servers)
-client.py -conn X.X.X.5 50000 1 --conn X.X.X.8 50000 1 --conn X.X.X.20 50000 1 --verbose
+wfgen_cli --conn X.X.X.5 50000 1 --conn X.X.X.8 50000 1 --conn X.X.X.20 50000 1 --verbose
 
 (Cmd) get_radios
 [shows 6 radios available]
@@ -180,7 +180,7 @@ client.py -conn X.X.X.5 50000 1 --conn X.X.X.8 50000 1 --conn X.X.X.20 50000 1 -
 (Assuming installed)
 
 ```bash
-python3 wfgen_server --help
+wfgen_server --help
 usage: wfgen_server [-h] [--addr ADDR] [--port PORT] [--octo-addr OCTO_ADDR] [--octo-port OCTO_PORT]
                  [--uhd-args UHD_ARGS] [--log-server]
 
@@ -191,7 +191,7 @@ optional arguments:
   --uhd-args UHD_ARGS   Limit to devices whose flag provided will find (def: all uhd devices)
   --log-server          Use if a log-server is active (meant for debugging)
 
-python3 wfgen_server --addr 127.0.0.1
+wfgen_server --addr 127.0.0.1
 Starting server...started
 ```
 
@@ -200,7 +200,7 @@ all UHD USRP devices. To constrain to only specific radios `--uhd-args` can be u
 any UHD arguments that help find the devices. For example, to limit to only the B2XX series devices
 
 ```bash
-python3 wfgen_server --addr 127.0.0.1 --uhd-args type=b200
+wfgen_server --addr 127.0.0.1 --uhd-args type=b200
 ```
 
 ### Client Side (CLI)
@@ -210,8 +210,8 @@ The client can be started as a program to use the designed command line interfac
 (Assuming installed)
 
 ```bash
-python3 wfgen_client --help
-usage: wfgen_client [-h] [--conn addr port use_ssh] [--verbose] [--dev] [--log-server]
+python3 wfgen_cli --help
+usage: wfgen_cli [-h] [--conn addr port use_ssh] [--verbose] [--dev] [--log-server]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -225,7 +225,7 @@ optional arguments:
 To connect to the server above
 
 ```bash
-python3 wfgen_client --conn 127.0.0.1 50000 False --verbose
+wfgen_cli --conn 127.0.0.1 50000 0 --verbose
 
 ** -------------------------------------------------------------------------- **
 ** Command List
@@ -312,7 +312,7 @@ reply: Killing process 1903712
 
 On the server side that interaction should produce something like this:
 ```python
-python3 wfgen_server --addr 127.0.0.1 --uhd-args type=b200
+wfgen_server --addr 127.0.0.1 --uhd-args type=b200
 Starting server...started
 ['frequency', '2.45e9', 'gain', '70', 'bw', '0.7', 'rate', '1e6', 'json', '/data/local/wfgen_reports/20240129082959_truth/truth_dev_30875A1_instance_00000.json']
 frequency 2.45e9
