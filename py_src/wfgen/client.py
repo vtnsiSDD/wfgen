@@ -620,7 +620,7 @@ class cli(cmd.Cmd,object):
         class tweaked(str):
             def __len__(self):
                 return 6
-        self.prompt = tweaked('(\033[38;5;82mCmd\033[0m) ')
+        self.prompt = tweaked('(\x01\x1b[38;5;82m\x02Cmd\x01\x1b[0m\x02) ')
         # self.dev_mode = 100 if dev else dev
         self.dev_mode = dev
         self.intro = "".join([
