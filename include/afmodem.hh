@@ -104,6 +104,8 @@ typedef enum {
     LIQUID_ANALOG_AM_WAV_FILE,
     LIQUID_ANALOG_AM_RAND_UNI,
     LIQUID_ANALOG_AM_RAND_GAUSS,
+    LIQUID_ANALOG_AM_PPM,
+    LIQUID_ANALOG_AM_PWM,
     LIQUID_ANALOG_FM_CONSTANT,
     LIQUID_ANALOG_FM_SQUARE,
     LIQUID_ANALOG_FM_TRIANGLE,
@@ -112,6 +114,8 @@ typedef enum {
     LIQUID_ANALOG_FM_WAV_FILE,
     LIQUID_ANALOG_FM_RAND_UNI,
     LIQUID_ANALOG_FM_RAND_GAUSS,
+    LIQUID_ANALOG_FM_CHIRP,
+    LIQUID_ANALOG_FM_CHIRP_NONLIN,
 } analog_scheme;
 
 // structure for holding full modulation type descriptor
@@ -122,7 +126,8 @@ struct analog_type_s {
     unsigned int bps;           // modulation depth (e.g. 1)
 };
 
-const struct analog_type_s analog_types[17] = {
+#define ANALOG_TYPE_COUNT 21
+const struct analog_type_s analog_types[ANALOG_TYPE_COUNT] = {
     // name      fullname                         scheme          bps
 
     // unknown
@@ -137,6 +142,8 @@ const struct analog_type_s analog_types[17] = {
     {"am_wav_file",     "analog_am_wav_file",     LIQUID_ANALOG_AM_WAV_FILE,    1},
     {"am_rand_uni",     "analog_am_rand_uni",     LIQUID_ANALOG_AM_RAND_UNI,    1},
     {"am_rand_gauss",   "analog_am_rand_gauss",   LIQUID_ANALOG_AM_RAND_GAUSS,  1},
+    {"am_ppm",          "analog_am_ppm",          LIQUID_ANALOG_AM_PPM,         1},
+    {"am_pwm",          "analog_am_pwm",          LIQUID_ANALOG_AM_PWM,         1},
     {"fm_constant",     "analog_fm_constant",     LIQUID_ANALOG_FM_CONSTANT,    1},
     {"fm_square",       "analog_fm_square",       LIQUID_ANALOG_FM_SQUARE,      1},
     {"fm_triangle",     "analog_fm_triangle",     LIQUID_ANALOG_FM_TRIANGLE,    1},
@@ -145,13 +152,15 @@ const struct analog_type_s analog_types[17] = {
     {"fm_wav_file",     "analog_fm_wav_file",     LIQUID_ANALOG_FM_WAV_FILE,    1},
     {"fm_rand_uni",     "analog_fm_rand_uni",     LIQUID_ANALOG_FM_RAND_UNI,    1},
     {"fm_rand_gauss",   "analog_fm_rand_gauss",   LIQUID_ANALOG_FM_RAND_GAUSS,  1},
+    {"fm_chirp",        "analog_fm_chirp",        LIQUID_ANALOG_FM_CHIRP,       1},
+    {"fm_chirp_nonlin", "analog_fm_chirp_nonlin", LIQUID_ANALOG_FM_CHIRP_NONLIN,1},
 };
 
 inline analog_scheme liquid_getopt_str2analog(const char * _str)
 {
     // compare each string to short name
     unsigned int i;
-    for (i=0; i<17; i++) {
+    for (i=0; i<ANALOG_TYPE_COUNT; i++) {
         if (strcmp(_str,analog_types[i].name)==0)
             return (analog_scheme)i;
     }
@@ -194,14 +203,14 @@ inline int liquid_print_analog_modulation_schemes()
 
     // print all available modem schemes
     printf("          ");
-    for (i=1; i<17; i++) {
+    for (i=1; i<ANALOG_TYPE_COUNT; i++) {
         printf("%s", analog_types[i].name);
 
-        if (i != 17-1)
+        if (i != ANALOG_TYPE_COUNT-1)
             printf(", ");
 
         len += strlen(analog_types[i].name);
-        if (len > 48 && i != 17-1) {
+        if (len > 48 && i != ANALOG_TYPE_COUNT-1) {
             len = 10;
             printf("\n          ");
         }

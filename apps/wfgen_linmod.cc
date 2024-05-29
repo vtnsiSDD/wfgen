@@ -12,6 +12,7 @@
 #include "liquid.h"
 #include "labels.hh"
 #include "noisemodem.hh"
+#include "writer.hh"
 
 
 static bool continue_running(true);

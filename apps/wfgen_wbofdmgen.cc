@@ -13,6 +13,7 @@
 #include "liquid.h"
 #include "labels.hh"
 #include "wbofdmgen.hh"
+#include "writer.hh"
 
 // primitive burst definition
 struct burst {

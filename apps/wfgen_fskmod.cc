@@ -12,6 +12,7 @@
 #include "liquid.h"
 #include "fskmodems.hh"
 #include "labels.hh"
+#include "writer.hh"
 
 #include <uhd/usrp/multi_usrp.hpp>
 

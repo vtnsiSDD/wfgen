@@ -133,7 +133,8 @@ struct fsk_type_s {
     unsigned int bps;           // modulation depth (e.g. 1)
 };
 
-const struct fsk_type_s fsk_types[33] = {
+#define FSK_TYPE_COUNT 33
+const struct fsk_type_s fsk_types[FSK_TYPE_COUNT] = {
     // name       fullname        scheme          bps
 
     // unknown
@@ -184,7 +185,7 @@ inline fsk_scheme liquid_getopt_str2fsk(const char * _str)
 {
     // compare each string to short name
     unsigned int i;
-    for (i=0; i<33; i++) {
+    for (i=0; i<FSK_TYPE_COUNT; i++) {
         if (strcmp(_str,fsk_types[i].name)==0)
             return (fsk_scheme)i;
     }
@@ -227,14 +228,14 @@ inline int liquid_print_fsk_modulation_schemes()
 
     // print all available modem schemes
     printf("          ");
-    for (i=1; i<33; i++) {
+    for (i=1; i<FSK_TYPE_COUNT; i++) {
         printf("%s", fsk_types[i].name);
 
-        if (i != 33-1)
+        if (i != FSK_TYPE_COUNT-1)
             printf(", ");
 
         len += strlen(fsk_types[i].name);
-        if (len > 48 && i != 33-1) {
+        if (len > 48 && i != FSK_TYPE_COUNT-1) {
             len = 10;
             printf("\n          ");
         }

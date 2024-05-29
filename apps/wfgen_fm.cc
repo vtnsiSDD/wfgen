@@ -13,6 +13,7 @@
 #include "liquid.h"
 #include "labels.hh"
 #include "analog.hh"
+#include "writer.hh"
 
 
 static bool continue_running(true);

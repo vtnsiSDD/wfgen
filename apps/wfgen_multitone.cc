@@ -11,6 +11,7 @@
 
 #include "labels.hh"
 #include "liquid.h"
+#include "writer.hh"
 
 static bool continue_running(true);
 void signal_interrupt_handler(int) {

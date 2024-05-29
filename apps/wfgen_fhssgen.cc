@@ -15,6 +15,7 @@
 #include "fskmodems.hh"
 #include "afmodem.hh"
 #include "noisemodem.hh"
+#include "writer.hh"
 
 
 // primitive burst definition

@@ -13,6 +13,7 @@
 #include "liquid.h"
 #include "labels.hh"
 #include "afmodem.hh"
+#include "writer.hh"
 
 static bool continue_running(true);
 void signal_interrupt_handler(int) {
