@@ -14,6 +14,10 @@
 #include "noisemodem.hh"
 #include "writer.hh"
 
+namespace c = wfgen::containers;
+namespace w = wfgen::writer;
+const auto& gcs = c::get_empty_content_size;
+typedef std::complex<float> fc32;
 
 static bool continue_running(true);
 void signal_interrupt_handler(int) {
@@ -27,12 +31,13 @@ double get_time(){
 
 int main (int argc, char **argv)
 {
-    double      uhd_tx_freq = 2.46e9;
-    double      uhd_tx_gain =  50.0;
-    double      uhd_tx_rate =   100e3f;
+    double      uhd_tx_freq =       2.46e9;
+    double      uhd_tx_gain =         50.0;
+    double      uhd_tx_rate =       100e3f;
     std::string uhd_tx_args{"type=b200"};
-    double      grange         =   0.0f;    // software cycle gain range
-    double      gcycle         =   2.0f;    // gain cycle duration
+
+    // double      grange         =   0.0f;    // software cycle gain range
+    // double      gcycle         =   2.0f;    // gain cycle duration
     std::string modulation{"qpsk"};
     std::string json("");
     std::string file_dump{""};
@@ -98,6 +103,11 @@ int main (int argc, char **argv)
         bw_nr = bw_f / uhd_tx_rate; // specified relative, overwriting other
         std::cout << "bw_f specified directly as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
     }
+    else{
+        bw_nr = 0.5;
+        bw_f = bw_nr*uhd_tx_rate;
+        std::cout << "bw not specified; set as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
+    }
 
 
     printf("Using:\n");
@@ -107,8 +117,11 @@ int main (int argc, char **argv)
     printf("  bw:           %.3f\n",bw_nr);
     printf("  gain:         %.3f\n",uhd_tx_gain);
     printf("  args:         %s\n",uhd_tx_args.c_str());
-    printf("  grange:       %.3f\n",grange);
-    printf("  cycle:        %.3f\n",gcycle);
+    // printf("  grange:       %.3f\n",grange);
+    // printf("  cycle:        %.3f\n",gcycle);
+    if(!json.empty())       printf("  json:         %s\n",json.c_str());
+    if(!file_dump.empty())  printf("  file:         %s\n",file_dump.c_str());
+    if(cut_radio)           printf("  radio connection cut\n");
 
     if(dry_run == 1){
         return 0;
@@ -116,13 +129,16 @@ int main (int argc, char **argv)
     chrono_time[1] = get_time();
 
     uhd::device_addr_t args(uhd_tx_args);
-    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+    uhd::usrp::multi_usrp::sptr usrp;
+    if(!cut_radio){
+        usrp = uhd::usrp::multi_usrp::make(args);
 
-    // try to configure hardware
-    usrp->set_tx_rate(uhd_tx_rate);
-    usrp->set_tx_freq(uhd_tx_freq);
-    usrp->set_tx_gain(0);
-    usrp->set_tx_bandwidth(bw_f);
+        // try to configure hardware
+        usrp->set_tx_rate(uhd_tx_rate);
+        usrp->set_tx_freq(uhd_tx_freq);
+        usrp->set_tx_gain(0);
+        usrp->set_tx_bandwidth(bw_f);
+    }
 
     // set up the metadta flags
     uhd::tx_metadata_t md;
@@ -135,16 +151,21 @@ int main (int argc, char **argv)
     channel_nums.push_back(0);
     uhd::stream_args_t stream_args("fc32", "sc16");
     stream_args.channels = channel_nums;
-    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
-    tx_stream->send("",0,md);
-    usrp->set_tx_gain(uhd_tx_gain);
+    uhd::tx_streamer::sptr tx_stream;
+    if(!cut_radio){
+        tx_stream = usrp->get_tx_stream(stream_args);
+        tx_stream->send("",0,md);
+        usrp->set_tx_gain(uhd_tx_gain);
+    }
 
     // vector buffer to send data to USRP
     unsigned int buf_len = 800;
-    std::vector<std::complex<float> > usrp_buffer(buf_len);
+    std::vector<fc32> usrp_buffer(buf_len);
+    c::container iq_container = c::container_create(c::CFLOAT32 | c::POINTER,
+        buf_len,usrp_buffer.data());
 
     // buffer of buffers? I guess?
-    std::vector<std::complex<float>*> bufs(channel_nums.size(), &usrp_buffer.front());
+    std::vector<fc32*> bufs(channel_nums.size(), &usrp_buffer.front());
 
     // signal generator
     bool noise_mode = false;
@@ -165,18 +186,19 @@ int main (int argc, char **argv)
     md.has_time_spec  = true;  // set to false to send immediately
 
     // gain cycle
-    uhd_tx_rate = usrp->get_tx_rate(); // get actual rate
-    unsigned long int num_samples_cycle = (unsigned long int) (gcycle * uhd_tx_rate);
-    unsigned long int num_buffers_cycle = num_samples_cycle / buf_len;
-    std::cout << num_samples_cycle << "," << num_buffers_cycle << std::endl;
-    unsigned int buffer_counter=0;
+    if(!cut_radio) uhd_tx_rate = usrp->get_tx_rate(); // get actual rate
+    // unsigned long int num_samples_cycle = (unsigned long int) (gcycle * uhd_tx_rate);
+    // unsigned long int num_buffers_cycle = num_samples_cycle / buf_len;
+    // std::cout << num_samples_cycle << "," << num_buffers_cycle << std::endl;
+    // unsigned int buffer_counter=0;
 
     std::signal(SIGINT, &signal_interrupt_handler);
     std::cout << "running (hit CTRL-C to stop)" << std::endl;
-    std::complex<float> * buf = usrp_buffer.data();
-    std::complex<float> sym;
+    fc32 * buf = usrp_buffer.data();
+    fc32 sym;
     chrono_time[2] = get_time();
-    usrp->set_time_now(uhd::time_spec_t(chrono_time[2]),uhd::usrp::multi_usrp::ALL_MBOARDS);
+    if(!cut_radio)
+        usrp->set_time_now(uhd::time_spec_t(chrono_time[2]),uhd::usrp::multi_usrp::ALL_MBOARDS);
     
     labels* reporter;
     if(!json.empty()){
@@ -189,20 +211,22 @@ int main (int argc, char **argv)
     uint64_t xfer_counter = 0;
     uint64_t xfer = 0;
     size_t xfer_len = 0;
+    float gain = 0.5f;
+    symstreamrcf_set_gain(gen, gain);
     while (continue_running) {
         // set the software gain
-        float gain_dB = -grange*(0.5f - 0.5f*cosf(2*M_PI*(float)buffer_counter/(float)num_buffers_cycle));
+        // float gain_dB = -grange*(0.5f - 0.5f*cosf(2*M_PI*(float)buffer_counter/(float)num_buffers_cycle));
         //printf("%6u : gain=%8.3f\n", buffer_counter, gain_dB);
-        buffer_counter = (buffer_counter+1) % num_buffers_cycle;
-        float gain = 0.5f*powf(10.0f, gain_dB/20.0f);
+        // buffer_counter = (buffer_counter+1) % num_buffers_cycle;
+        // float gain = 0.5f*powf(10.0f, gain_dB/20.0f);
         if(ms != LIQUID_MODEM_UNKNOWN){
-            symstreamrcf_set_gain(gen, gain);
+            // symstreamrcf_set_gain(gen, gain);
 
             // generate samples to buffer
             symstreamrcf_write_samples(gen, buf, buf_len);
         }
         else{
-            symstreamrncf_set_gain(ngen, gain);
+            // symstreamrncf_set_gain(ngen, gain);
 
             // generate samples to buffer
             symstreamrncf_write_samples(ngen, buf, buf_len);
@@ -212,11 +236,23 @@ int main (int argc, char **argv)
         xfer_len = buf_len;
         while((xfer == 0 && xfer_len > 0) && continue_running){
             // send the result to the USRP
-            xfer = tx_stream->send(bufs, usrp_buffer.size(), md);
+            if(!cut_radio){
+                xfer = tx_stream->send(bufs, usrp_buffer.size(), md);
+                if(!file_dump.empty()){
+                    //write iq_container->ptr xfer
+                }
+            }
+            else if(!file_dump.empty()){
+                //xfer = write iq_contianer->ptr buf_len
+            }
             if(xfer < xfer_len){
                 xfer_counter += xfer;
                 xfer_len -= xfer;
-                memmove( usrp_buffer.data(), &usrp_buffer[xfer], xfer_len*sizeof(std::complex<float>) );
+                memmove( usrp_buffer.data(), &usrp_buffer[xfer], xfer_len*sizeof(fc32) );
+                if(!file_dump.empty()){
+                    iq_container->ptr = (void*)((fc32*)iq_container->ptr + xfer);
+                    iq_container->size = xfer_len;
+                }
                 xfer = 0;
                 if(md.start_of_burst){
                     md.start_of_burst = false;
@@ -224,6 +260,12 @@ int main (int argc, char **argv)
                     md.has_time_spec = false;
                 }
             }
+        }
+        ////////xfer == last transfer size
+        if(!file_dump.empty()){
+            xfer_len = buf_len - xfer;
+            iq_container->ptr = (void*)((fc32*)iq_container->ptr - xfer_len);
+            iq_container->size = buf_len;
         }
         xfer_counter += xfer;
         if(md.start_of_burst){
@@ -237,15 +279,22 @@ int main (int argc, char **argv)
     // send a mini EOB packet
     md.start_of_burst = false;
     md.end_of_burst   = true;
-    tx_stream->send("",0,md);
+    if(!cut_radio) tx_stream->send("",0,md);
     chrono_time[3] = get_time();
 
 
     // sleep for a small amount of time to allow USRP buffers to flush
     // usleep(100000);
-    while(get_time() < chrono_time[2]+0.5+xfer_counter/uhd_tx_rate);
-    usrp->set_tx_freq(6e9);
-    usrp->set_tx_gain(0.0);
+    if(!cut_radio){
+        while(get_time() < chrono_time[2]+0.5+xfer_counter/uhd_tx_rate);
+        usrp->set_tx_freq(6e9);
+        usrp->set_tx_gain(0.0);
+    }
+    if(!file_dump.empty()){
+        // writer_closeout
+        container_destroy(&iq_container);
+        // writer_destroy
+    }
 
     //finished
     printf("usrp data transfer complete\n");

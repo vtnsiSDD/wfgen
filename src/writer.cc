@@ -6,98 +6,64 @@
 #ifdef __cplusplus
 namespace wfgen{
 namespace writer{
-
-void writer_loop_ram(writer_thread thread_state)
-{
-    ////// don't really need to do anything
-}
-
-void writer_loop_iq(writer_thread thread_state)
-{
-    std::string filename = std::string(thread_state->filepath);
-    std::ofstream file_handle(filename, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
-    while (thread_state->state & 0x80){
-        ///// some buffer object to the file_handle is done here ---> only looking at IQ
-        if(thread_state->state & 0x40){
-
-        }
-    }
-}
-
-void writer_loop_sigmf(writer_thread thread_state)
-{
-    ////// don't really need to do anything
-}
-
-void writer_loop_burst(writer_thread thread_state)
-{
-    ////// don't really need to do anything
-}
-
 extern "C" {
-
 #endif
 
 
+void writer_loop_ram(thread_state thread_state)
+{
+    ////// don't really need to do anything
+}
 
+void writer_loop_iq(thread_state thread_state)
+{
+}
 
+void writer_loop_sigmf(thread_state thread_state)
+{
+    ////// don't really need to do anything
+}
 
+void writer_loop_burst(thread_state thread_state)
+{
+    ////// don't really need to do anything
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-writer_thread writer_thread_create_empty(){
-    writer_thread wt = (writer_thread)malloc(sizeof(writer_thread_t));
-    memset(wt, 0, sizeof(writer_thread_t));
+thread_state thread_state_create_empty(){
+    thread_state wt = (thread_state)malloc(sizeof(thread_state_t));
+    memset(wt, 0, sizeof(thread_state_t));
     return wt;
 }
 
 #ifdef __cplusplus
 }
-writer_thread writer_thread_create(uint8_t mode, std::string filename){
-    writer_thread wt = writer_thread_create_empty();
-    wt->state = 0;
-    wt->filepath = (char*)malloc(filename.size()+1);
-    memset((char*)wt->filepath, 0, filename.size()+1);
-    memcpy((char*)wt->filepath, filename.c_str(), filename.size());
-    wt->mode = mode;
-    return wt;
+thread_state thread_state_create(){
+    return thread_state_create_empty();
 }
 extern "C" {
 #endif
 
-void writer_thread_destroy(writer_thread *wt){
+void thread_state_destroy(thread_state *wt){
     if(wt == NULL) return;
     if(*wt == NULL) return;
-    if(writer_thread_is_joinable(*wt)){
-        writer_thread_stop(*wt);
-        writer_thread_join(*wt);
+    if(thread_state_is_joinable(*wt)){
+        thread_state_stop(*wt);
+        thread_state_join(*wt);
     }
     if((*wt)->state & 0xC0) return; // need to stop this here I think
-    if((*wt)->filepath != NULL) free((*wt)->filepath);
     free(*wt);
     *wt = NULL;
 }
-void writer_thread_start(writer_thread thread_state){
+void thread_state_start(thread_state thread_state){
 
 }
-void writer_thread_stop(writer_thread thread_state){
+void thread_state_stop(thread_state thread_state){
 
 }
-void writer_thread_join(writer_thread thread_state){
+void thread_state_join(thread_state thread_state){
 
 }
-uint8_t writer_thread_is_joinable(writer_thread thread_state){
+uint8_t thread_state_is_joinable(thread_state thread_state){
  return 0;
 }
 

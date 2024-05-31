@@ -3,6 +3,7 @@
 
 #include <complex>
 #include <rapidjson/document.h>
+#include "forward.hh"
 #include "liquid.h"
 
 #ifdef __cplusplus
@@ -10,6 +11,41 @@ namespace wfgen{
 namespace containers{
 extern "C" {
 #endif
+
+typedef enum content_type_e{
+    OWNER=0x80,
+    POINTER=0x40,
+    CONTAINER=0x3F,
+    UNSPECIFIED=1,
+    UINT8,
+    INT8,
+    UINT16,
+    INT16,
+    UINT32,
+    INT32,
+    UINT64,
+    INT64,
+    FLOAT32,
+    DOUBLE64,
+    LDOUBLE128,
+    CHAR,
+    POINTER_S,
+    POINTER32,
+    POINTER64,
+    CINT8,
+    CINT16,
+    CINT32,
+    CINT64,
+    CFLOAT32,
+    CDOUBLE64,
+    CLDOUBLE128,
+    BURST_CT,
+    WAVEFORM_CT,
+    LIST,
+    DICT
+} content_t;
+
+uint64_t get_empty_content_size(uint8_t type);
 
 typedef enum burst_src_e{
     EMPTY=255,
@@ -23,6 +59,12 @@ typedef enum burst_src_e{
 } burst_src_t;
 
 #pragma pack(push, 1)
+typedef struct container_s{
+    uint8_t     type;
+    uint64_t    size;
+    void        *ptr;
+} container_t;
+typedef container_t * container;
 typedef struct cburst_s{
     uint64_t    size;
     uint8_t     source;
@@ -37,6 +79,10 @@ typedef struct cburst_s{
 } cburst_t;
 typedef cburst_t * cburst;
 #pragma pack(pop)
+
+container container_create_empty();
+container container_create(uint8_t type, uint64_t size, void* ptr=NULL);
+void container_destroy(container* c);
 
 cburst cburst_create_empty();
 cburst cburst_create(uint8_t src, double fc, double fs, double bw, double ts, uint64_t max_samples);
@@ -65,15 +111,15 @@ typedef struct waveform_s{
 } waveform_t;
 typedef waveform_t * waveform;
 
-typedef struct header_ptr_s{
-
-} header_ptr_t;
-typedef header_ptr_t * header_ptr;
-
-typedef struct data_ptr_s{
-
-} data_ptr_t;
-typedef data_ptr_t * data_ptr;
+// typedef struct header_ptr_s{
+//
+// } header_ptr_t;
+// typedef header_ptr_t * header_ptr;
+//
+// typedef struct data_ptr_s{
+//
+// } data_ptr_t;
+// typedef data_ptr_t * data_ptr;
 #pragma pack(pop)
 
 

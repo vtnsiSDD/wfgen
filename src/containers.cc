@@ -1,12 +1,141 @@
 
 
 #include "containers.hh"
+#include "writer.hh"
 
 #ifdef __cplusplus
 namespace wfgen{
+using namespace writer;
 namespace containers{
 extern "C" {
 #endif
+
+uint64_t get_empty_content_size(uint8_t type){
+    if (type & 0x40) return sizeof(void*);
+    switch (type & 0x3F){
+        case NULL:          // NULL
+        case UNSPECIFIED:   // UNSPECIFIED
+            return 0;
+            break;
+        case UINT8:         // uint8_t
+        case INT8:          // int8_t
+        case CHAR:          // char
+            return 1;
+            break;
+        case UINT16:        // uint16_t
+        case INT16:         // int16_t
+        case CINT8:         // complex int8
+            return 2;
+            break;
+        case UINT32:        // uint32_t
+        case INT32:         // int32_t
+        case FLOAT32:       // float32_t
+        case POINTER32:     // pointer32
+        case CINT16:        // complex int16
+            return 4;
+            break;
+        case UINT64:        // uint64_t
+        case INT64:         // int64_t
+        case DOUBLE64:      // double64_t
+        case POINTER64:     // pointer64
+        case CINT32:        // complex int32
+        case CFLOAT32:      // complex float32
+            return 8;
+            break;
+        case LDOUBLE128:    // ldouble128_t
+        case CINT64:        // complex int64
+        case CDOUBLE64:     // complex double64
+            return 16;
+            break;
+        case POINTER_S:       // pointer
+            return sizeof(char *);
+            break;
+        case CLDOUBLE128:   // complex ldouble128
+            return 32;
+            break;
+        case 24:    // BURST_CT
+            return sizeof(cburst_t);
+            break;
+        case 25:    // WAVEFORM_CT
+            return sizeof(waveform_t);
+            break;
+        case 26:    // WRITER_CT
+            return sizeof(writer_t);
+            break;
+        case 27:    // LIST
+        case 28:    // DICT
+        case 63:    // CONTAINER
+            return sizeof(container_t);
+            break;
+        case 29:    //
+        case 30:    //
+        case 31:    //
+        case 32:    //
+        case 33:    //
+        case 34:    //
+        case 35:    //
+        case 36:    //
+        case 37:    //
+        case 38:    //
+        case 39:    //
+        case 40:    //
+        case 41:    //
+        case 42:    //
+        case 43:    //
+        case 44:    //
+        case 45:    //
+        case 46:    //
+        case 47:    //
+        case 48:    //
+        case 49:    //
+        case 50:    //
+        case 51:    //
+        case 52:    //
+        case 53:    //
+        case 54:    //
+        case 55:    //
+        case 56:    //
+        case 57:    //
+        case 58:    //
+        case 59:    //
+        case 60:    //
+        case 61:    //
+        case 62:    //
+            break;
+        default:
+            break;
+    }
+    return 0;
+}
+
+container container_create_empty(){
+    container c = (container) malloc(sizeof(container_t));
+    memset(c, 0, sizeof(container_t));
+    return c;
+}
+
+container container_create(uint8_t type, uint64_t size, void* ptr){
+    container c = container_create_empty();
+    c->type = type;
+    c->size = size;
+    if(ptr == NULL && size > 0){
+        c->type |= 0x80;
+        ptr = malloc(size);
+    }
+    return c;
+}
+
+void container_destroy(container *c){
+    if(c == NULL) return;
+    if((*c) == NULL) return;
+    if((*c)->type & 0x80){
+        if((*c)->ptr != NULL){
+            free((*c)->ptr);
+        }
+    }
+    free(*c);
+    *c = NULL;
+}
 
 cburst cburst_create_empty(){
     cburst b = (cburst)malloc(sizeof(cburst_t));

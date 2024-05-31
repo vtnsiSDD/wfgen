@@ -106,6 +106,11 @@ int main (int argc, char **argv)
         bw_nr = bw_f / uhd_tx_rate; // specified relative, overwriting other
         std::cout << "bw_f specified directly as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
     }
+    else{
+        bw_nr = 0.5;
+        bw_f = bw_nr*uhd_tx_rate;
+        std::cout << "bw not specified; set as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
+    }
 
     analog_scheme afscheme = liquid_getopt_str2analog(modulation.c_str());
     if(afscheme == LIQUID_ANALOG_UNKNOWN){

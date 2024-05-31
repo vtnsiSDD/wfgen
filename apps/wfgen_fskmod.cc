@@ -103,8 +103,8 @@ int main (int argc, char **argv)
     // std::cout << "debug: (" << (int)got_bw << "," << (int)got_BW << "," << (int)got_sr <<")\n";
     // std::cout << "debug: (" << bw_nr << "," << bw_f << "," << symbol_rate <<")\n";
 
-    if ((got_BW + got_bw + got_sr > 1) || (got_BW + got_bw + got_sr == 0)){
-        fprintf(stderr,"Must specify one and only one of {-B, -b, -R}\n");
+    if (((got_BW | got_bw) + got_sr > 1) || ((got_BW | got_bw) + got_sr == 0)){
+        fprintf(stderr,"Must specify one and only one of {(-B | -b), -R}\n");
     }
 
     if (bw_f > 0){
@@ -117,6 +117,11 @@ int main (int argc, char **argv)
             return 1;
         }
         bw_f = uhd_tx_rate*bw_nr;
+    }
+    else{
+        bw_nr = 0.5;
+        bw_f = bw_nr*uhd_tx_rate;
+        std::cout << "bw not specified; set as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
     }
     // std::cout << "debug: (" << bw_nr << "," << bw_f << "," << symbol_rate <<")\n";
     if((ms_f > 8) && (ms_f < 17)  && ((cpf_type > 3 || cpf_type < 0) && (cpf_type !=20))){

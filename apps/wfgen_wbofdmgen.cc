@@ -141,6 +141,11 @@ int main (int argc, char **argv)
         bw_nr = bw_f / uhd_tx_rate; // specified relative, overwriting other
         std::cout << "bw_f specified directly as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
     }
+    else{
+        bw_nr = 0.5;
+        bw_f = bw_nr*uhd_tx_rate;
+        std::cout << "bw not specified; set as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
+    }
 
     if(min_syms==0 && max_syms==0){
         min_syms = max_syms = 512;

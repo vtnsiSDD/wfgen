@@ -226,6 +226,11 @@ int main (int argc, char **argv)
         bw_nr = bw_f / uhd_tx_rate; // specified relative, overwriting other
         std::cout << "bw_f specified directly as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
     }
+    else{
+        bw_nr = 0.05;
+        bw_f = bw_nr*uhd_tx_rate;
+        std::cout << "bw not specified; set as: " << bw_f << " Hz at rate: " << uhd_tx_rate << "Hz for a bw_nr: " << bw_nr << std::endl;
+    }
 
     hop_time = period;
     std::cout << "dwell: " << dwell << " | squelch: " << squelch << " | period: " << period << std::endl;
