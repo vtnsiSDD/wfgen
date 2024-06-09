@@ -1,7 +1,19 @@
 
+#ifdef __cplusplus
 #include <iostream>
+#endif
 #include "noisemodem.hh"
 
+const struct noise_type_s noise_types[noise_type_count] = {
+    // name      fullname                         scheme          bps
+
+    // unknown
+    {"unknown",  "unknown_noise",                 LIQUID_NOISE_UNKNOWN, 0},
+
+    // AWGN
+    {"awgn",     "additive white gaussian noise", LIQUID_NOISE_AWGN, 1},
+    {"noise",    "additive white gaussian noise", LIQUID_NOISE_AWGN, 1}
+};
 
 #define liquid_error_config(format, ...) \
     liquid_error_config_nl(__FILE__, __LINE__, format, ##__VA_ARGS__);

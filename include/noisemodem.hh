@@ -6,13 +6,16 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
-
+#ifdef __cplusplus
 #include <complex>
+#else
+#include <complex.h>
+#endif
 #include "liquid.h"
 
 // report error specifically for invalid object configuration 
 // report error
-inline void * liquid_error_config_nl(const char * _file,
+static inline void * liquid_error_config_nl(const char * _file,
                               int          _line,
                               const char * _format,
                               ...)
@@ -104,17 +107,8 @@ struct noise_type_s {
     unsigned int bps;           // modulation depth (e.g. 1)
 };
 
-const unsigned int noise_type_count = 3;
-const struct noise_type_s noise_types[noise_type_count] = {
-    // name      fullname                         scheme          bps
-
-    // unknown
-    {"unknown",  "unknown_noise",                 LIQUID_NOISE_UNKNOWN, 0},
-
-    // AWGN
-    {"awgn",     "additive white gaussian noise", LIQUID_NOISE_AWGN, 1},
-    {"noise",    "additive white gaussian noise", LIQUID_NOISE_AWGN, 1}
-};
+#define noise_type_count 3
+extern const struct noise_type_s noise_types[];
 
 inline noise_scheme liquid_getopt_str2noise(const char * _str)
 {

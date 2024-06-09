@@ -1,7 +1,7 @@
 
-#include <iostream>
 #include "labels.hh"
-
+#ifdef __cplusplus
+#include <iostream>
 labels::labels(std::string _filename,
                std::string _prefix,
                std::string _signal,
@@ -146,3 +146,6 @@ void labels::append(double tic, double dur, double fc, double bw, std::string me
 void labels::cache_to_misc(std::string input){
     misc += input;
 }
+#else
+
+#endif

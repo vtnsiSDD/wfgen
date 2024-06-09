@@ -1,8 +1,10 @@
 
+#ifdef __cplusplus
 #include <iostream>
+#endif
 #include "modulation.hh"
 
-const signal_modulation_s signal_modulation_list[SIGNAL_MODULATION_LIST_LEN]
+const struct signal_modulation_s signal_modulation_list[SIGNAL_MODULATION_LIST_LEN] =
 {
   // name_label      family_label        scheme
     {"ask",          "ask",              LIQUID_MODEM_UNKNOWN,   LIQUID_FSK_UNKNOWN,     LIQUID_ANALOG_UNKNOWN,      LIQUID_NOISE_UNKNOWN},
@@ -87,21 +89,23 @@ const signal_modulation_s signal_modulation_list[SIGNAL_MODULATION_LIST_LEN]
     {"",             "unknown",          LIQUID_MODEM_UNKNOWN,   LIQUID_FSK_UNKNOWN,     LIQUID_ANALOG_UNKNOWN,      LIQUID_NOISE_UNKNOWN},
 };
 
+#ifdef __cplusplus
 // get index of above map given label name as input
 unsigned int signal_modulation_map_label_to_index(std::string _name_label)
 {
-    for (auto i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
+    for (uint8_t i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
         if (strcmp(_name_label.c_str(), signal_modulation_list[i].name_label)==0)
             return i;
     }
     return SIGNAL_MODULATION_LIST_LEN-1; // unknown
 }
+#endif
 
 // get index of above map given modulation type as input
 unsigned int signal_modulation_map_ms_to_index(modulation_scheme _ms)
 {
     if(_ms == LIQUID_MODEM_UNKNOWN) return SIGNAL_MODULATION_LIST_LEN-1;//unknown
-    for (auto i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
+    for (uint8_t i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
         if (_ms == signal_modulation_list[i].scheme)
             return i;
     }
@@ -112,7 +116,7 @@ unsigned int signal_modulation_map_ms_to_index(modulation_scheme _ms)
 unsigned int signal_modulation_map_msf_to_index(fsk_scheme _ms)
 {
     if(_ms == LIQUID_FSK_UNKNOWN) return SIGNAL_MODULATION_LIST_LEN-1;//unknown
-    for (auto i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
+    for (uint8_t i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
         if (_ms == signal_modulation_list[i].f_scheme)
             return i;
     }
@@ -123,7 +127,7 @@ unsigned int signal_modulation_map_msf_to_index(fsk_scheme _ms)
 unsigned int signal_modulation_map_msa_to_index(analog_scheme _ms)
 {
     if(_ms == LIQUID_ANALOG_UNKNOWN) return SIGNAL_MODULATION_LIST_LEN-1;//unknown
-    for (auto i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
+    for (uint8_t i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
         if (_ms == signal_modulation_list[i].a_scheme)
             return i;
     }
@@ -134,7 +138,7 @@ unsigned int signal_modulation_map_msa_to_index(analog_scheme _ms)
 unsigned int signal_modulation_map_msn_to_index(noise_scheme _ms)
 {
     if(_ms == LIQUID_NOISE_UNKNOWN) return SIGNAL_MODULATION_LIST_LEN-1;//unknown
-    for (auto i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
+    for (uint8_t i=0U; i<SIGNAL_MODULATION_LIST_LEN; i++) {
         if (_ms == signal_modulation_list[i].n_scheme)
             return i;
     }

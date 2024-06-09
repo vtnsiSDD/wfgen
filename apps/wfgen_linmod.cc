@@ -16,8 +16,9 @@
 
 namespace c = wfgen::containers;
 namespace w = wfgen::writer;
+typedef ::wfgen::fc32 fc32;
 const auto& gcs = c::get_empty_content_size;
-typedef std::complex<float> fc32;
+
 
 static bool continue_running(true);
 void signal_interrupt_handler(int) {
@@ -139,6 +140,8 @@ int main (int argc, char **argv)
         usrp->set_tx_gain(0);
         usrp->set_tx_bandwidth(bw_f);
     }
+    w::writer f_handle;
+    if(!file_dump.empty()) f_handle = w::writer_create(w::WRITER_BURST, file_dump.c_str(), 0);
 
     // set up the metadta flags
     uhd::tx_metadata_t md;
@@ -160,12 +163,13 @@ int main (int argc, char **argv)
 
     // vector buffer to send data to USRP
     unsigned int buf_len = 800;
-    std::vector<fc32> usrp_buffer(buf_len);
-    c::container iq_container = c::container_create(c::CFLOAT32 | c::POINTER,
-        buf_len,usrp_buffer.data());
+    // std::vector<fc32> usrp_buffer(buf_len);
+    c::container iq_container = c::container_create(c::CFLOAT32 | c::POINTER | c::OWNER,
+        buf_len*sizeof(fc32),NULL);
 
     // buffer of buffers? I guess?
-    std::vector<fc32*> bufs(channel_nums.size(), &usrp_buffer.front());
+    // std::vector<fc32*> bufs(channel_nums.size(), &usrp_buffer.front());
+    std::vector<fc32*> bufs(channel_nums.size(), (fc32*)iq_container->ptr);
 
     // signal generator
     bool noise_mode = false;
@@ -194,7 +198,8 @@ int main (int argc, char **argv)
 
     std::signal(SIGINT, &signal_interrupt_handler);
     std::cout << "running (hit CTRL-C to stop)" << std::endl;
-    fc32 * buf = usrp_buffer.data();
+    // fc32 * buf = usrp_buffer.data();
+    fc32 * buf = (fc32*)iq_container->ptr;
     fc32 sym;
     chrono_time[2] = get_time();
     if(!cut_radio)
@@ -237,22 +242,21 @@ int main (int argc, char **argv)
         while((xfer == 0 && xfer_len > 0) && continue_running){
             // send the result to the USRP
             if(!cut_radio){
-                xfer = tx_stream->send(bufs, usrp_buffer.size(), md);
+                xfer = tx_stream->send(bufs, xfer_len, md);
                 if(!file_dump.empty()){
                     //write iq_container->ptr xfer
+                    if(xfer != writer_store_head(f_handle,iq_container,xfer)){
+                        throw std::runtime_error("Hmmm.");
+                    }
                 }
             }
             else if(!file_dump.empty()){
-                //xfer = write iq_contianer->ptr buf_len
+                xfer = writer_store_head(f_handle,iq_container,xfer_len);
             }
             if(xfer < xfer_len){
                 xfer_counter += xfer;
                 xfer_len -= xfer;
-                memmove( usrp_buffer.data(), &usrp_buffer[xfer], xfer_len*sizeof(fc32) );
-                if(!file_dump.empty()){
-                    iq_container->ptr = (void*)((fc32*)iq_container->ptr + xfer);
-                    iq_container->size = xfer_len;
-                }
+                memmove( buf, &buf[xfer], xfer_len*sizeof(fc32) );
                 xfer = 0;
                 if(md.start_of_burst){
                     md.start_of_burst = false;
@@ -262,11 +266,6 @@ int main (int argc, char **argv)
             }
         }
         ////////xfer == last transfer size
-        if(!file_dump.empty()){
-            xfer_len = buf_len - xfer;
-            iq_container->ptr = (void*)((fc32*)iq_container->ptr - xfer_len);
-            iq_container->size = buf_len;
-        }
         xfer_counter += xfer;
         if(md.start_of_burst){
             md.start_of_burst = false;
@@ -291,9 +290,9 @@ int main (int argc, char **argv)
         usrp->set_tx_gain(0.0);
     }
     if(!file_dump.empty()){
-        // writer_closeout
+        writer_close(f_handle);
         container_destroy(&iq_container);
-        // writer_destroy
+        writer_destroy(&f_handle);
     }
 
     //finished

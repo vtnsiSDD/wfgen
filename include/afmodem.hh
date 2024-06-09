@@ -6,14 +6,17 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
-
+#ifdef __cplusplus
 #include <complex>
+#else
+#include <complex.h>
+#endif
 #include "liquid.h"
 #include "analog.hh"
 
 // report error specifically for invalid object configuration 
 // report error
-inline void * liquid_error_config_al(const char * _file,
+static inline void * liquid_error_config_al(const char * _file,
                               int          _line,
                               const char * _format,
                               ...)
@@ -127,34 +130,8 @@ struct analog_type_s {
 };
 
 #define ANALOG_TYPE_COUNT 21
-const struct analog_type_s analog_types[ANALOG_TYPE_COUNT] = {
-    // name      fullname                         scheme          bps
 
-    // unknown
-    {"unknown",         "unknown_analog",         LIQUID_ANALOG_UNKNOWN,        0},
-
-    // ANALOG
-    {"am_constant",     "analog_am_constant",     LIQUID_ANALOG_AM_CONSTANT,    1},
-    {"am_square",       "analog_am_square",       LIQUID_ANALOG_AM_SQUARE,      1},
-    {"am_triangle",     "analog_am_triangle",     LIQUID_ANALOG_AM_TRIANGLE,    1},
-    {"am_sawtooth",     "analog_am_sawtooth",     LIQUID_ANALOG_AM_SAWTOOTH,    1},
-    {"am_sinusoid",     "analog_am_sinusoid",     LIQUID_ANALOG_AM_SINUSOID,    1},
-    {"am_wav_file",     "analog_am_wav_file",     LIQUID_ANALOG_AM_WAV_FILE,    1},
-    {"am_rand_uni",     "analog_am_rand_uni",     LIQUID_ANALOG_AM_RAND_UNI,    1},
-    {"am_rand_gauss",   "analog_am_rand_gauss",   LIQUID_ANALOG_AM_RAND_GAUSS,  1},
-    {"am_ppm",          "analog_am_ppm",          LIQUID_ANALOG_AM_PPM,         1},
-    {"am_pwm",          "analog_am_pwm",          LIQUID_ANALOG_AM_PWM,         1},
-    {"fm_constant",     "analog_fm_constant",     LIQUID_ANALOG_FM_CONSTANT,    1},
-    {"fm_square",       "analog_fm_square",       LIQUID_ANALOG_FM_SQUARE,      1},
-    {"fm_triangle",     "analog_fm_triangle",     LIQUID_ANALOG_FM_TRIANGLE,    1},
-    {"fm_sawtooth",     "analog_fm_sawtooth",     LIQUID_ANALOG_FM_SAWTOOTH,    1},
-    {"fm_sinusoid",     "analog_fm_sinusoid",     LIQUID_ANALOG_FM_SINUSOID,    1},
-    {"fm_wav_file",     "analog_fm_wav_file",     LIQUID_ANALOG_FM_WAV_FILE,    1},
-    {"fm_rand_uni",     "analog_fm_rand_uni",     LIQUID_ANALOG_FM_RAND_UNI,    1},
-    {"fm_rand_gauss",   "analog_fm_rand_gauss",   LIQUID_ANALOG_FM_RAND_GAUSS,  1},
-    {"fm_chirp",        "analog_fm_chirp",        LIQUID_ANALOG_FM_CHIRP,       1},
-    {"fm_chirp_nonlin", "analog_fm_chirp_nonlin", LIQUID_ANALOG_FM_CHIRP_NONLIN,1},
-};
+extern const struct analog_type_s analog_types[];
 
 inline analog_scheme liquid_getopt_str2analog(const char * _str)
 {

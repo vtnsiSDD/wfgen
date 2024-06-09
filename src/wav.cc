@@ -1,9 +1,14 @@
 
 #include "wav.hh"
+#include <glob.h>
+#ifdef __cplusplus
 #include <iostream>
 #include <cstdlib>
-#include <glob.h>
 #include <cassert>
+#else
+#include <stdlib.h>
+#include <assert.h>
+#endif
 /////WAV
 int compare_check(void* buff1, void* buff2, int length){
     uint8_t *b1,*b2;
@@ -16,7 +21,7 @@ int compare_check(void* buff1, void* buff2, int length){
     }
     return 0;
 }
-
+#ifdef __cplusplus
 int64_t find_flag(wav_obj wav, uint32_t offset, std::string flag){
     char* searcher = (char*)flag.data();
     int length = flag.length();
@@ -111,16 +116,102 @@ wav_obj_t* open_wav(std::string fp){
 
     return out;
 }
+#else
+int64_t find_flag(wav_obj wav, uint32_t offset, const char* flag){
+    char* searcher = (char*)flag;
+    int length = strlen(flag);
+    size_t searching = offset;
+    uint8_t *data_ptr = (uint8_t*)wav->data_ptr;
+    while(searching < wav->filesize+length-1){
+        if(!compare_check((void*)&data_ptr[searching], (void*)searcher, length)){
+            // found it
+            return searching;
+        }
+        searching++;
+    }
+    return -1;//didn't find it
+}
+
+wav_obj_t* open_wav(char* fp){
+    wav_obj out = (wav_obj_t*)malloc(sizeof(struct wav_obj_s));
+    if (!out){
+        return NULL;//couldn't make object
+    }
+    memset(out, 0, sizeof(*out));
+    out->err_state = 0;
+    out->filepath = (char*)malloc(strlen(fp)+1);
+    if (!out->filepath){
+        out->err_state = 0xff;//couldn't malloc
+        return out;
+    }
+    memcpy( out->filepath, fp, strlen(fp) );
+    out->filepath[strlen(fp)] = 0;
+    out->filehandle = (void*)fopen(out->filepath, "r");
+    if(!out->filehandle){
+        out->err_state = 1;//couldn't open
+        return out;
+    }
+    fseek((FILE*)out->filehandle, 0L, SEEK_END);
+    out->filesize = ftell((FILE*)out->filehandle);
+    fseek((FILE*)out->filehandle, 0L, SEEK_SET);
+    out->data_ptr = mmap(0, out->filesize, PROT_READ, MAP_SHARED, fileno((FILE*)out->filehandle), 0);
+    if((uint8_t*)out->data_ptr == (uint8_t*)MAP_FAILED){
+        out->err_state = 2;// couldn't mmap
+        return out;
+    }
+
+    uint8_t *ptr8;
+    ptr8 = (uint8_t*)out->data_ptr;
+    const char * header = "RIFF";
+    const char * type = "WAVE";
+    if(compare_check((void*)ptr8, (void*)header, strlen(header))
+            || compare_check((void*)&ptr8[8], (void*)type, strlen(type))){
+        out->err_state = 3;// not a wav file
+        return out;
+    }
+
+    int64_t fmt_offset = 0;
+    fmt_offset = find_flag(out, 12, "fmt ");
+    out->data_offset = find_flag(out, 12, "data");
+    if(fmt_offset == -1 || out->data_offset == -1){
+        out->err_state = 4;// couldn't find reqired flags
+        return out;
+    }
+
+    if(*((uint32_t*)(&ptr8[fmt_offset+4])) != 16){
+        out->err_state = 5; // something is wrong with the fmt section
+        return out;
+    }
+    out->audio_fmt = *((uint16_t*)(&ptr8[fmt_offset+8]));
+    out->num_channels = *((uint16_t*)(&ptr8[fmt_offset+10]));
+    out->sample_rate = *((uint32_t*)(&ptr8[fmt_offset+12]));
+    out->byte_rate = *((uint32_t*)(&ptr8[fmt_offset+16]));
+    out->block_align = *((uint16_t*)(&ptr8[fmt_offset+20]));
+    out->bit_depth = *((uint16_t*)(&ptr8[fmt_offset+22]));
+
+    if(out->audio_fmt != 1){
+        out->err_state = 0xF0;//don't know how to handle this format
+        return out;
+    }
+
+    out->data_len = (size_t) *((uint32_t*)(&ptr8[out->data_offset+4]));
+    // out->data_type = uint8_t(int((float)(out->bit_depth)/8.0f));
+    out->data_type = (uint8_t)((float)(out->bit_depth))/8.0f;
+    out->data_offset += 8;
+
+    return out;
+}
+#endif
 
 int close_wav(wav_obj* wav_ptr){
-    if (wav_ptr == nullptr) return 1;
-    if (*wav_ptr == nullptr) return 1;
+    if (wav_ptr == NULL) return 1;
+    if (*wav_ptr == NULL) return 1;
     wav_obj wav = *wav_ptr;
-    if(wav->filehandle != nullptr){
+    if(wav->filehandle != NULL){
         fclose((FILE*)wav->filehandle);
-        wav->filehandle = nullptr;
+        wav->filehandle = NULL;
     }
-    if(wav->data_ptr != nullptr){
+    if(wav->data_ptr != NULL){
         munmap(wav->data_ptr,wav->filesize);
     }
     return 0;
@@ -129,15 +220,16 @@ int close_wav(wav_obj* wav_ptr){
 void destroy_wav_obj(wav_obj* wav_ptr){
     if(close_wav(wav_ptr)) return;
     wav_obj wav = *wav_ptr;
-    if(wav->filepath != nullptr){
+    if(wav->filepath != NULL){
         free(wav->filepath);
-        wav->filepath = nullptr;
+        wav->filepath = NULL;
     }
     free(*wav_ptr);
-    wav_ptr = nullptr;
+    wav_ptr = NULL;
 }
 
 void print_wav_info(wav_obj wav, uint8_t mode, uint32_t offset, int32_t length){
+    #ifdef __cplusplus
     if (mode == 0){
         std::cout << wav->filepath;
         std::cout << "\n  err_state:      " << (int)wav->err_state;
@@ -180,11 +272,12 @@ void print_wav_info(wav_obj wav, uint8_t mode, uint32_t offset, int32_t length){
         }
         std::cout << std::endl;
     }
+    #endif
 }
 
 int index_wav(wav_obj wav, uint32_t start_idx, uint32_t stereo_samples, float* out_ptr){
-    if (wav == nullptr) return -1;
-    if (out_ptr == nullptr) return -2;
+    if (wav == NULL) return -1;
+    if (out_ptr == NULL) return -2;
     uint8_t bytes_per_sample = wav->block_align;
     float scaling = 512;
     float shift = -1.0;
@@ -202,7 +295,7 @@ int index_wav(wav_obj wav, uint32_t start_idx, uint32_t stereo_samples, float* o
     scaling = 1.0/scaling;
     size_t len = wav->data_len/bytes_per_sample;
     size_t offset = 0;
-    uint xfer = 0;
+    uint32_t xfer = 0;
     float samp[2];
     uint8_t *data_ptr = &((uint8_t*)wav->data_ptr)[wav->data_offset];
     while(xfer < stereo_samples){
@@ -215,9 +308,9 @@ int index_wav(wav_obj wav, uint32_t start_idx, uint32_t stereo_samples, float* o
         }
         switch(wav->data_type){
             case 1:
-                samp[0] = scaling*float(data_ptr[start_idx*bytes_per_sample + offset++])+shift;
+                samp[0] = scaling*(float)(data_ptr[start_idx*bytes_per_sample + offset++])+shift;
                 if(wav->num_channels > 1){
-                    samp[1] = scaling*float(data_ptr[start_idx*bytes_per_sample + offset++])+shift;
+                    samp[1] = scaling*(float)(data_ptr[start_idx*bytes_per_sample + offset++])+shift;
                 }
                 else{
                     //assume it's mono and just dumbly make it stereo
@@ -226,10 +319,10 @@ int index_wav(wav_obj wav, uint32_t start_idx, uint32_t stereo_samples, float* o
                 }
                 break;
             case 2:
-                samp[0] = scaling*float(*((int16_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
+                samp[0] = scaling*(float)(*((int16_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
                 offset += 2;
                 if(wav->num_channels > 1){
-                    samp[1] = scaling*float(*((int16_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
+                    samp[1] = scaling*(float)(*((int16_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
                     offset += 2;
                 }
                 else{
@@ -239,10 +332,10 @@ int index_wav(wav_obj wav, uint32_t start_idx, uint32_t stereo_samples, float* o
                 }
                 break;
             case 4:
-                samp[0] = scaling*float(*((int32_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
+                samp[0] = scaling*(float)(*((int32_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
                 offset += 4;
                 if(wav->num_channels > 1){
-                    samp[1] = scaling*float(*((int32_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
+                    samp[1] = scaling*(float)(*((int32_t*)&data_ptr[start_idx*bytes_per_sample + offset]));
                     offset += 4;
                 }
                 else{
@@ -276,9 +369,14 @@ void load_files(char **filepaths, int file_count, wav_reader wav){
     }
 }
 
+#ifdef __cplusplus
 int find_default_valid(char **&filepaths){
+#else
+int find_default_valid(char **filepaths){
+#endif
     if(filepaths != NULL) return -1;
     int valid_files = 0;
+    #ifdef __cplusplus
     char* default_path = std::getenv("WFGEN_AUDIO_FOLDER");
     std::vector<std::string> good_files(0);
     if(default_path != NULL){
@@ -314,16 +412,21 @@ int find_default_valid(char **&filepaths){
     }
     if(valid_files){
         filepaths = (char**) malloc(valid_files*sizeof(char*));
-        for(uint idx = 0; idx < good_files.size(); idx++){
+        for(uint32_t idx = 0; idx < good_files.size(); idx++){
             filepaths[idx] = (char*)malloc(good_files[idx].size()+1);
             memcpy(filepaths[idx], good_files[idx].data(), good_files[idx].size());
             filepaths[idx][good_files[idx].size()] = 0;
         }
     }
+    #endif
     return valid_files;
 }
 
+#ifdef __cplusplus
 wav_reader wav_reader_create(){
+#else
+wav_reader wav_reader_create_default(){
+#endif
     wav_reader wav = (wav_reader)malloc(sizeof(wav_reader_t));
     wav->buffer = NULL;
     wav->file_count = 0;
@@ -358,10 +461,10 @@ wav_reader wav_reader_create(){
     return wav;
 }
 
-wav_reader wav_reader_create(uint8_t file_count, char **filepaths, uint32_t prefetch){
-    // if (!(mode == MONO || mode == STEREO)){
-    //     return NULL;
-    // }
+wav_reader wav_reader_create(wav_mode_t mode, uint8_t file_count, char **filepaths, uint32_t prefetch){
+    if (!(mode == MONO || mode == STEREO)){
+        return NULL;
+    }
     wav_reader wav = (wav_reader)malloc(sizeof(wav_reader_t));
     wav->buffer = NULL;
     wav->file_count = 0;
@@ -421,7 +524,11 @@ uint8_t wav_reader_sample_bytes(wav_reader wav){
 uint64_t wav_reader_fill_buffer(wav_reader wav){
     // fills the reader buffer (float*) with {prefetch} samples
     if(wav->read_as != ALL){
+        #ifdef __cplusplus
         throw std::runtime_error("wav_reader is in an unexpected read_as mode.");
+        #else
+        return 0;
+        #endif
     }
     uint64_t loaded = 0;
     uint64_t floats_available = cbufferf_space_available(wav->buffer);//if read_as is ALL, then itemsize = 2*float
@@ -448,7 +555,11 @@ uint64_t wav_reader_fill_buffer(wav_reader wav){
     return loaded;
 }
 
+#ifdef __cplusplus
 uint64_t wav_reader_data_ptr(wav_reader wav, float* &ptr){
+#else
+uint64_t wav_reader_data_ptr(wav_reader wav, float* ptr){
+#endif
     // set the ptr to where to read from, and return number of samples in buffer
     uint64_t max_len = cbufferf_max_read(wav->buffer); // floats
     uint32_t max_read = 0;

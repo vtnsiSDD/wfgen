@@ -1,13 +1,16 @@
 
+#ifdef __cplusplus
 #include <iostream>
 #include <algorithm>
 #include <iomanip>
 #include <ios>
 #include <ctime>
+#endif
 #include <unistd.h>
 
 #include "logger.hh"
 
+#ifdef __cplusplus
 constexpr const char* file_name(const char* path){
   const char *file = path;
   while(*path){
@@ -786,3 +789,4 @@ void print_payload_stats(payload &p){
   std::cout << "length: " << (size_t)p.length << std::endl;
   std::cout << "buffer: " << p.buffer << std::endl;
 }
+#endif

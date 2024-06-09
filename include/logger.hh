@@ -1,5 +1,6 @@
 #ifndef LOGGER_HH_INCLUDED
 #define LOGGER_HH_INCLUDED
+#ifdef __cplusplus
 
 #include <string>
 #include <iostream>
@@ -39,7 +40,6 @@ void print_payload_stats(payload &p);
 
 class logger_server;
 class logger_client;
-
 
 namespace logger{
   class null_buff : public std::streambuf{
@@ -183,4 +183,5 @@ class logger_server{//don't fork/share
 
 };
 
+#endif
 #endif // LOGGER_HH_INCLUDED

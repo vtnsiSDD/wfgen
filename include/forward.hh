@@ -1,8 +1,20 @@
 #ifndef FORWARD_HH
 #define FORWARD_HH
 
+
+#ifndef __LIQUID_H__
+#ifdef __cplusplus
+#include <complex>
+#endif
+#include "liquid.h"
+#endif
+#ifndef __cplusplus
+typedef liquid_float_complex fc32;
+#endif
+
 #ifdef __cplusplus
 namespace wfgen{
+typedef liquid_float_complex fc32;
 namespace containers{
 extern "C" {
 #endif

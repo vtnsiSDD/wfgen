@@ -1,7 +1,37 @@
 
+#ifdef __cplusplus
 #include <iostream>
+#endif
 #include "afmodem.hh"
 
+const struct analog_type_s analog_types[ANALOG_TYPE_COUNT] = {
+    // name      fullname                         scheme          bps
+
+    // unknown
+    {"unknown",         "unknown_analog",         LIQUID_ANALOG_UNKNOWN,        0},
+
+    // ANALOG
+    {"am_constant",     "analog_am_constant",     LIQUID_ANALOG_AM_CONSTANT,    1},
+    {"am_square",       "analog_am_square",       LIQUID_ANALOG_AM_SQUARE,      1},
+    {"am_triangle",     "analog_am_triangle",     LIQUID_ANALOG_AM_TRIANGLE,    1},
+    {"am_sawtooth",     "analog_am_sawtooth",     LIQUID_ANALOG_AM_SAWTOOTH,    1},
+    {"am_sinusoid",     "analog_am_sinusoid",     LIQUID_ANALOG_AM_SINUSOID,    1},
+    {"am_wav_file",     "analog_am_wav_file",     LIQUID_ANALOG_AM_WAV_FILE,    1},
+    {"am_rand_uni",     "analog_am_rand_uni",     LIQUID_ANALOG_AM_RAND_UNI,    1},
+    {"am_rand_gauss",   "analog_am_rand_gauss",   LIQUID_ANALOG_AM_RAND_GAUSS,  1},
+    {"am_ppm",          "analog_am_ppm",          LIQUID_ANALOG_AM_PPM,         1},
+    {"am_pwm",          "analog_am_pwm",          LIQUID_ANALOG_AM_PWM,         1},
+    {"fm_constant",     "analog_fm_constant",     LIQUID_ANALOG_FM_CONSTANT,    1},
+    {"fm_square",       "analog_fm_square",       LIQUID_ANALOG_FM_SQUARE,      1},
+    {"fm_triangle",     "analog_fm_triangle",     LIQUID_ANALOG_FM_TRIANGLE,    1},
+    {"fm_sawtooth",     "analog_fm_sawtooth",     LIQUID_ANALOG_FM_SAWTOOTH,    1},
+    {"fm_sinusoid",     "analog_fm_sinusoid",     LIQUID_ANALOG_FM_SINUSOID,    1},
+    {"fm_wav_file",     "analog_fm_wav_file",     LIQUID_ANALOG_FM_WAV_FILE,    1},
+    {"fm_rand_uni",     "analog_fm_rand_uni",     LIQUID_ANALOG_FM_RAND_UNI,    1},
+    {"fm_rand_gauss",   "analog_fm_rand_gauss",   LIQUID_ANALOG_FM_RAND_GAUSS,  1},
+    {"fm_chirp",        "analog_fm_chirp",        LIQUID_ANALOG_FM_CHIRP,       1},
+    {"fm_chirp_nonlin", "analog_fm_chirp_nonlin", LIQUID_ANALOG_FM_CHIRP_NONLIN,1},
+};
 
 #define liquid_error_config(format, ...) \
     liquid_error_config_al(__FILE__, __LINE__, format, ##__VA_ARGS__);
@@ -173,42 +203,58 @@ int symstreamracf_set_scheme(symstreamracf _q, int _ms){
     // source setup
     switch(_ms){
         case 1: case 9:{
-            _q->true_source = (void*) constant_source_create(_q->src_freq);
+            _q->true_source = (void*) constant_source_create(_q->src_freq,1024);
             break;
         }
         case 2: case 10:{
-            _q->true_source = (void*) square_source_create(1.0,_q->src_freq);
+            _q->true_source = (void*) square_source_create(1.0,_q->src_freq,0,1024);
             break;
         }
         case 3: case 11:{
-            _q->true_source = (void*) triangle_source_create(1.0,_q->src_freq);
+            _q->true_source = (void*) triangle_source_create(1.0,_q->src_freq,0,1024);
             break;
         }
         case 4: case 12:{
-            _q->true_source = (void*) sawtooth_source_create(1.0,_q->src_freq);
+            _q->true_source = (void*) sawtooth_source_create(1.0,_q->src_freq,0,1024);
             break;
         }
         case 5: case 13:{
-            _q->true_source = (void*) sinusoid_source_create(1.0,_q->src_freq);
+            _q->true_source = (void*) sinusoid_source_create(1.0,_q->src_freq,0,1024);
             break;
         }
         case 6: case 14:{
+            #ifdef __cplusplus
             _q->true_source = (void*) wav_source_create();
+            #else
+            _q->true_source = (void*) wav_source_create_default();
+            #endif
             special = MONO;
             break;
         }
         case 7: case 15:{
+            #ifdef __cplusplus
             _q->true_source = (void*) rand_uni_source_create();
+            #else
+            _q->true_source = (void*) rand_uni_source_create_default();
+            #endif
             break;
         }
         case 8: case 16:{
+            #ifdef __cplusplus
             _q->true_source = (void*) rand_gauss_source_create();
+            #else
+            _q->true_source = (void*) rand_gauss_source_create_default();
+            #endif
             break;
         }
         default: break;
     }
+    #ifdef __cplusplus
     _q->wrap_source = real_source_create(_q->true_source, sizeof(float), 1, special);
-    _q->path = real_path_create(1.0,1.0,1.0,0.5,0.0,1.0,0.0,_q->wrap_source);
+    #else
+    _q->wrap_source = real_source_create_from_source(_q->true_source, sizeof(float), 1, special);
+    #endif
+    _q->path = real_path_create(1.0,1.0,1.0,0.5,0.0,1.0,0.0,_q->wrap_source,NULL,NULL);
     // modulator
     if(_ms < 9){
         _q->mod_a = amgen_create(1, _q->mod_idx, NULL, &_q->path);
@@ -216,7 +262,7 @@ int symstreamracf_set_scheme(symstreamracf _q, int _ms){
     }
     else{
         _q->mod_a = amgen_create(1, 1.0, NULL, &_q->path);
-        _q->mod_f = fmgen_create(_q->mod_idx, _q->mod_a);
+        _q->mod_f = fmgen_create(_q->mod_idx, _q->mod_a, NULL);
     }
 
     return LIQUID_OK;
@@ -229,7 +275,11 @@ int symstreamacf_fill_buffer(symstreamracf _q){
     if(_q->mod_f != NULL) fmgen_step(_q->mod_f, &v);
     else{
         amgen_step(_q->mod_a, &f);
+        #ifdef __cplusplus
         v = liquid_float_complex(f,0.f);
+        #else
+        v = f + 0.f*I;
+        #endif
     }
     v *= _q->gain;
     firinterp_crcf_execute(_q->interp, v, _q->buf_internal);

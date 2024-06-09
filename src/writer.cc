@@ -1,9 +1,8 @@
 
-#include <iostream>
 #include "writer.hh"
 
-
 #ifdef __cplusplus
+#include <cstring>
 namespace wfgen{
 namespace writer{
 extern "C" {
@@ -35,10 +34,11 @@ thread_state thread_state_create_empty(){
     return wt;
 }
 
-#ifdef __cplusplus
-}
 thread_state thread_state_create(){
     return thread_state_create_empty();
+}
+
+#ifdef __cplusplus
 }
 extern "C" {
 #endif
@@ -66,6 +66,60 @@ void thread_state_join(thread_state thread_state){
 uint8_t thread_state_is_joinable(thread_state thread_state){
  return 0;
 }
+
+
+writer writer_create_empty(){
+    writer w = (writer)malloc(sizeof(writer_t));
+    memset(w, 0, sizeof(writer_t));
+    return w;
+}
+writer writer_create(write_mode_t _mode, const char* _filepath, uint8_t _threaded){
+    writer w = writer_create_empty();
+    w->kind = _mode;
+    uint32_t flen = strlen(_filepath);
+    if (flen > FILENAME_MAX){
+        printf("Invalid filepath provided.\n");
+        exit(1);
+    }
+    w->filename = (char*)malloc(flen+1);
+    memcpy(w->filename,_filepath,flen+1);
+    w->n_threads = _threaded;
+    return w;
+}
+void writer_destroy(writer *w){
+    if (w == NULL) return;
+    if (*w == NULL) return;
+    for (uint8_t tidx = 0; tidx < (*w)->n_threads; tidx++){
+        thread_state_stop(&(*w)->_state[tidx]);
+    }
+    for (uint8_t tidx = 0; tidx < (*w)->n_threads; tidx++){
+        thread_state_join(&(*w)->_state[tidx]);
+    }
+}
+uint64_t writer_store(writer w, container c){
+    if(w->n_threads){}
+    else{
+        //block until written
+        fwrite(c->ptr, c->size, 1, w->fptr);
+    }
+    return 0;
+}
+uint64_t writer_store_head(writer w, container c, uint64_t head){
+    return head;
+}
+uint64_t writer_store_tail(writer w, container c, uint64_t tail){
+    return tail;
+}
+uint64_t writer_store_range(writer w, container c, uint64_t skip, uint64_t cut){
+    return cut-skip;
+}
+void writer_close(writer w){
+}
+
+
+
+
+
 
 #ifdef __cplusplus
 }}}

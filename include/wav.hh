@@ -6,9 +6,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#ifdef __cplusplus
 #include <string>
-#include <sys/mman.h>
 #include <vector>
+#endif
+#include <sys/mman.h>
 #include "liquid.h"
 
 typedef enum{
@@ -55,19 +57,30 @@ typedef struct wav_reader_s{
 typedef wav_reader_t* wav_reader;
 
 
-
+#ifdef __cplusplus
 wav_obj open_wav(std::string fp);
+#else
+wav_obj open_wav(char* fp);
+#endif
 int close_wav(wav_obj* wav_ptr);
 void destroy_wav_obj(wav_obj* wav_ptr);
+#ifdef __cplusplus
 void print_wav_info(wav_obj wav, uint8_t mode, uint32_t offset=0, int32_t length=25);
+#endif
 int index_wav(wav_obj wav, uint32_t start_idx, uint32_t stereo_samples, float* out_ptr);
 
+#ifdef __cplusplus
 wav_reader wav_reader_create();
 wav_reader wav_reader_create(wav_mode_t mode, uint8_t file_count, char **filepaths, uint32_t prefetch=20000);
+uint64_t wav_reader_data_ptr(wav_reader wav, float* &ptr);
+#else
+wav_reader wav_reader_create_default();
+wav_reader wav_reader_create(wav_mode_t mode, uint8_t file_count, char **filepaths, uint32_t prefetch);
+uint64_t wav_reader_data_ptr(wav_reader wav, float* ptr);
+#endif
 void wav_reader_destroy(wav_reader *wav);
 uint8_t wav_reader_sample_bytes(wav_reader wav);
 uint64_t wav_reader_fill_buffer(wav_reader wav);
-uint64_t wav_reader_data_ptr(wav_reader wav, float* &ptr);
 uint64_t wav_reader_advance(wav_reader wav, uint64_t samples);
 int wav_reader_set_offset(wav_reader wav, uint64_t offset);
 uint64_t wav_reader_get_len(wav_reader wav);
