@@ -115,12 +115,16 @@ uint64_t get_empty_content_size(uint8_t type){
 
 container container_create_empty(){
     container c = (container) malloc(sizeof(container_t));
+    if(c == NULL) return c;
+    // printf("___ Root: %p\tValue:%p\n",&c,c);
     memset(c, 0, sizeof(container_t));
     return c;
 }
 
 container container_create(uint8_t type, uint64_t size, void* ptr){
     container c = container_create_empty();
+    if(c == NULL) return c;
+    // printf("Root: %p\tValue:%p\tSize:%lu\n",&c,c,sizeof(container_t));
     uint8_t own = (type&0x80) > 0;
     uint8_t pointer = (type&0x40) > 0;
     // base_size -> value of zero, size should be bytes
@@ -128,88 +132,104 @@ container container_create(uint8_t type, uint64_t size, void* ptr){
     // elif pointer -> size is number of items
     uint64_t base_size = get_empty_content_size(type&0x3F);
     uint64_t raw_size;// = size*((base_size) ? base_size : 1);
-    if(pointer){
-        raw_size = (base_size) ? base_size*size : size;
-        c->size = size;
-    }
-    else{
-        raw_size = (base_size) ? base_size : size;
-        c->size = raw_size;
-    }
+    container adj = NULL;
     c->type = type;
-    if(own){
-        /// need to own
-        void *adj = realloc(c, raw_size);
-        if(adj==NULL){
-            c->type &= 0x7F;//// can't own it
-            c->ptr = ptr;
-            return c;
-        }
-        else{
-            c = (container)adj;
-            // there's data to own
-            if (ptr != NULL) memcpy(c->ptr,ptr,raw_size);
-            else memset(c->ptr, 0, raw_size);
-        }
-    }
-    else if(ptr == NULL && size > 0){
-        // create an empty owned buffer
-        void *adj = realloc(c, size);
+
+    if(pointer && own){
+        ////// digesting an array, size should be the number of items (unless undefined, then total size)
+        ////////// preserve the pointer
+        raw_size = sizeof(container_t) + (base_size ? base_size*size : size); // container, ptr, data
+        c->size = size;
+        adj = (container)realloc(c, raw_size);
         if(adj == NULL){
-            c->ptr = NULL;
-            c->size = 0;
+            // couldn't take ownership
+            c->type &= 0x7F;
+            c->ptr = ptr; // just keep the pointer then
         }
         else{
-            c = (container)adj;
-            c->type |= 0x80;
-            memset(c->ptr, 0, size);
+            c = adj;
+            // c->ptr = (uint8_t)c+sizeof(container_t);
+            c->ptr = c+sizeof(container_t);
+            if(ptr != NULL)
+                memcpy( c->ptr, ptr, raw_size-sizeof(container_t) );
+            else
+                memset( c->ptr, 0, raw_size - sizeof(container_t) );
         }
     }
-    else{
-        // i don't want to own what I'm pointing to
+    else if (own){
+        raw_size = (base_size ? base_size : size) + sizeof(container_t); // preserve the pointer as a pointer
+        c->size = raw_size;
+        adj = (container)realloc(c, raw_size);
+        if(adj == NULL){
+            // couldn't take ownership
+            c->type &= 0x7F;
+            c->type |= 0x40;// it's a pointer to the item then
+            c->ptr = ptr;
+        }
+        else{
+            c = adj;
+            // c->ptr = (uint8_t)c+sizeof(container_t);
+            c->ptr = c+sizeof(container_t);
+            if(ptr != NULL)
+                memcpy( c->ptr, ptr, raw_size-sizeof(container_t) );
+            else
+                memset( c->ptr, 0, raw_size - sizeof(container_t) );
+        }
+    }
+    else if (pointer){
+        // just setting our pointer to their value
+        c->size = size;
         c->ptr = ptr;
     }
+    else{
+        // don't want to own this item, but also don't want a pointer to it....
+        // tough, ptr to it
+        c->size = size;
+        c->ptr = ptr;
+        c->type |= 0x40;// it's a pointer to the item then
+    }
+
     return c;
 }
 
 void container_destroy(container *c){
     if(c == NULL) return;
     if((*c) == NULL) return;
-    if((*c)->type & 0x80){ // if owner
-        if((*c)->ptr != NULL) free((*c)->ptr);
-    }
+    // printf("XXX Root: %p\tValue:%p\n",c,*c);
+    // if((*c)->type & 0x80){ // if owner
+    //     if((*c)->ptr != NULL) free((*c)->ptr);
+    // }
     free(*c);
     *c = NULL;
 }
 
 void container_get_info(container c, uint64_t *items, uint64_t *itemsize, size_t *binsize){
-    uint64_t base_size = get_empty_content_size(c->type);
-    uint8_t ptr = ((c->type&0x40) > 0) ? 1u : 0u;
-    if(ptr && base_size){
-        *items = c->size;
-        *itemsize = base_size;
-        *binsize = base_size * c->size;
-    }
-    else if(ptr){
-        /// no bin size readily found
-        *itemsize = c->size;
-        *items = 1;
-        *binsize = c->size;
-    }
-    else if (base_size){
-        /// not flagged as a pointer
-        // container might have more allocated than needed
-        *items = 1;
-        *itemsize = base_size;
-        *binsize = base_size;
+    uint64_t base_size = get_empty_content_size(c->type&0x3F);
+    uint8_t ptr = c->type&0x40;
+    uint8_t own = c->type&0x80;
+    if(ptr){
+        if(base_size){
+            *items = c->size;
+            *itemsize = base_size;
+            *binsize = sizeof(container_t) + (own ? c->size * base_size : 0);
+        }
+        else{
+            *items = 1;
+            *itemsize = c->size;
+            *binsize = sizeof(container_t) + (own ? c->size : 0);
+        }
     }
     else{
-        // not a pointer, nor a known bin size
-        *itemsize = c->size;
-        *binsize = c->size;
         *items = 1;
+        if(base_size){
+            *itemsize = base_size;
+            *binsize = sizeof(container_t) + (own ? base_size : 0);
+        }
+        else{
+            *itemsize = c->size - sizeof(container_t);
+            *binsize = c->size;
+        }
     }
-    ///
 }
 
 //////////////////////////////////////////////////////////////////////////

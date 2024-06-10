@@ -11,16 +11,16 @@ PROGRAMS	:= $(patsubst apps/%.cc, build/_cpp/apps/%, ${APPS})
 TESTS		:= $(patsubst test/%.cc, build/_cpp/test/%, ${TESTER})
 
 _C_OBJS		:= $(patsubst src/%.cc, build/_c/src/%.o, ${SOURCES})
-_C_OBJS		+= $(patsubst apps/%.cc, build/_c/apps/%.o, ${APPS})
-_C_OBJS		+= $(patsubst test/%.cc, build/_c/test/%.o, ${TESTER})
+_C_TOBJS	:= $(patsubst test/%.cc, build/_c/test/%.o, ${TESTER})
 _C_TEST 	:= $(patsubst test/%.cc, build/_c/test/%, ${TESTER})
+_C_POBJS	:= $(patsubst apps/%.cc, build/_c/apps/%.o, ${APPS})
 _C_PROGS	:= $(patsubst apps/%.cc, build/_c/apps/%, ${APPS})
 
 
 OMP_FLAGS 	:= -D ENABLE_OMP -fopenmp
-CXXFLAGS	:= -std=c++17 -g -Wall -Wno-deprecated-declarations -I./include -I${PYBOMBS_PREFIX}/include -I${VIRTUAL_ENV}/include -I./liquid-dsp/include ${OPT_FLAGS} -Wno-class-memaccess ${OMP_FLAGS}
-CFLAGS		:= -std=gnu11 -g -Wall -Wno-deprecated-declarations -I./include -I${PYBOMBS_PREFIX}/include -I${VIRTUAL_ENV}/include -I./liquid-dsp/include ${OPT_FLAGS} ${OMP_FLAGS}
-LDFLAGS		:= -L${VIRTUAL_ENV}/lib -L./build/lib -L./liquid-dsp
+CXXFLAGS	:= -std=c++17 -g -Wall -fPIC -Wno-deprecated-declarations -I./include -I${PYBOMBS_PREFIX}/include -I${VIRTUAL_ENV}/include -I./liquid-dsp/include ${OPT_FLAGS} -Wno-class-memaccess ${OMP_FLAGS}
+CFLAGS		:= -std=gnu11 -g -Wall -fPIC -Wno-deprecated-declarations -I./include -I${PYBOMBS_PREFIX}/include -I${VIRTUAL_ENV}/include -I./liquid-dsp/include ${OPT_FLAGS} ${OMP_FLAGS}
+LDFLAGS		:= -L${VIRTUAL_ENV}/lib -L./liquid-dsp
 LIBS		:= -lm -lliquid -lfftw3f -pthread -lzmq -lczmq -luhd -lboost_system -lyaml
 
 .phony: clean echo_debug
@@ -69,27 +69,43 @@ ifndef PYBOMBS_PREFIX
 	$(error PYBOMBS_PREFIX is not set)
 endif
 
-build/_cpp/%.o : %.cc | check-virtualenv check-pybombs
+build/_cpp/%.o : %.cc | check-virtualenv check-pybombs builddir
 	g++ ${CXXFLAGS} -MD -MP $< -c -o $@
 
-build/_c/%.o : %.cc | check-virtualenv check-pybombs
+build/_c/%.o : %.cc | check-virtualenv check-pybombs builddir
 	-gcc -x c ${CFLAGS} -MD -MP $< -c -o $@
 
-${PROGRAMS} : build/_cpp/% : %.cc | ${OBJECTS}
-	g++ -I${PYBOMBS_PREFIX}/include ${CXXFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} $< ${OBJECTS} -o $@ ${LIBS}
+build/_cpp/lib/libwfgen_cpp.a : ${OBJECTS}
+	ar -rc build/_cpp/lib/libwfgen_cpp.a ${OBJECTS}
+build/_c/lib/libwfgen_c.a : ${_C_OBJS}
+	ar -rc build/_c/lib/libwfgen_c.a ${_C_OBJS}
+build/_cpp/lib/libwfgen_cpp.so : ${OBJECTS}
+	g++ -shared ${LDFLAGS} -o build/_cpp/lib/libwfgen_cpp.so ${LIBS} ${OBJECTS}
+build/_c/lib/libwfgen_c.so : ${_C_OBJS}
+	gcc -shared ${LDFLAGS} -o build/_c/lib/libwfgen_c.so ${LIBS} ${_C_OBJS}
 
-${TESTS} : build/_cpp/% : %.cc | ${OBJECTS}
-	g++ -I${PYBOMBS_PREFIX}/include ${CXXFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} $< ${OBJECTS} -o $@ ${LIBS}
+wf_gen_cpp_libs : build/_cpp/lib/libwfgen_cpp.a build/_cpp/lib/libwfgen_cpp.so
+wf_gen_c_libs : build/_c/lib/libwfgen_c.a build/_c/lib/libwfgen_c.so
 
-${_C_PROGS} : build/_c/% : %.cc | ${_C_OBJS}
-	-gcc -x c -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} ${_C_OBJS} -o $@ ${LIBS}
+${PROGRAMS} : build/_cpp/% : %.cc | ${OBJECTS} wf_gen_cpp_libs
+	g++ -I${PYBOMBS_PREFIX}/include ${CXXFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_cpp/lib $< -o $@ -lwfgen_cpp ${LIBS}
 
-${_C_TEST} : build/_c/% : %.cc | ${_C_OBJS}
-	-gcc -x c -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} ${_C_OBJS} -o $@ ${LIBS}
+${TESTS} : build/_cpp/% : %.cc | ${OBJECTS} wf_gen_cpp_libs
+	-g++ -I${PYBOMBS_PREFIX}/include ${CXXFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_cpp/lib $< -o $@ -lwfgen_cpp ${LIBS}
+
+${_C_PROGS} : build/_c/% : %.cc | ${_C_OBJS} ${_C_POBJS} wf_gen_c_libs
+	-gcc -x c -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_c/lib ${_C_POBJS} -o $@ -lwfgen_c ${LIBS}
+
+${_C_TEST} : build/_c/% : %.cc | ${_C_OBJS} ${_C_TOBJS} wf_gen_c_libs
+	gcc -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_c/lib ${_C_TOBJS} -o $@ -lwfgen_c ${LIBS}
+
+run_tests: ${TESTS} ${_C_TEST}
+	for f in ${TESTS}; do LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:build/_cpp/lib  ./$$f; done
+	for f in ${_C_TEST}; do LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:build/_c/lib  ./$$f; done
 
 all						: builddir ${PROGRAMS} ${_C_PROGS}
 
-test 					: builddir ${TESTS} ${_C_TEST}
+test 					: builddir ${TESTS} ${_C_TEST} run_tests
 
 echo_debug:
 	@echo "SOURCES = ${SOURCES}"
@@ -97,6 +113,8 @@ echo_debug:
 	@echo "APPS = ${APPS}"
 	@echo "OBJECTS = ${OBJECTS}"
 	@echo "_C_OBJS = ${_C_OBJS}"
+	@echo "_C_POBJS = ${_C_POBJS}"
+	@echo "_C_TOBJS = ${_C_TOBJS}"
 	@echo "PROGRAMS = ${PROGRAMS}"
 	@echo "_C_PROGS = ${_C_PROGS}"
 	@echo "TESTS = ${TESTS}"
@@ -116,3 +134,5 @@ uninstall				: check-virtualenv
 
 -include $(OBJECTS:.o=.d)
 -include $(_C_OBJS:.o=.d)
+-include $(_C_POBJS:.o=.d)
+-include $(_C_TOBJS:.o=.d)
