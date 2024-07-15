@@ -6,5 +6,26 @@ authors:
     orcid: https://orcid.org/0000-0001-9770-9398
 title: "wfgen"
 version: 0.1.0
-identifiers: ""
 date-released: 2024-02-14
+url: "https://github.com/vtnsiSDD/wfgen"
+preferred-citation:
+  type: unpublished
+  authors:
+  - family-names: Clark
+    given-names: William
+    orcid: https://orcid.org/0000-0001-9770-9398
+  - family-names: Coulon
+    given-names: Thomas
+    orcid: 
+  - family-names: Rheault
+    given-names: Elliott
+    orcid: 
+  - family-names: Michaels
+    given-names: Alan
+    orcid: https://orcid.org/0000-0003-2437-3410
+journal: "MILCOM 2024"
+month:
+start:
+end:
+title: "Practical Waveform Generation and Labeling for Radio Frequency Applications"
+year: 2024
