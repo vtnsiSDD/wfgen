@@ -35,14 +35,14 @@ liquid-dsp/libliquid.so : liquid-dsp/makefile
 	cd ./liquid-dsp && $(MAKE) all
 
 liquid					: liquid-dsp/libliquid.so builddir
-	cp ./liquid-dsp/libliquid.so ./build/lib/
-	cd ./liquid-dsp && $(MAKE) install
+	cp ./liquid-dsp/libliquid.so ./build/_c/lib/
+	cp ./liquid-dsp/libliquid.so ./build/_cpp/lib/
 
 clean-liquid			:
 	cd ./liquid-dsp && $(MAKE) distclean
 
 builddir				:
-	if [ ! -d "./build/src" ]; then \
+	if [ ! -d "./build/_cpp/src" ]; then \
 		mkdir -p ./build/_cpp/src; \
 		mkdir -p ./build/_c/src; \
 		mkdir -p ./build/_cpp/apps; \
@@ -55,7 +55,7 @@ builddir				:
 		mkdir -p ./build/_c/test; \
 	fi
 
-clean					:
+clean					: clean-liquid
 	rm -rf ./build
 
 check-virtualenv		:
@@ -72,20 +72,20 @@ endif
 build/_cpp/%.o : %.cc | check-virtualenv check-pybombs builddir
 	g++ ${CXXFLAGS} -MD -MP $< -c -o $@
 
-build/_c/%.o : %.cc | check-virtualenv check-pybombs builddir
-	-gcc -x c ${CFLAGS} -MD -MP $< -c -o $@
+# build/_c/%.o : %.cc | check-virtualenv check-pybombs builddir
+# 	-gcc -x c ${CFLAGS} -MD -MP $< -c -o $@
 
 build/_cpp/lib/libwfgen_cpp.a : ${OBJECTS}
 	ar -rc build/_cpp/lib/libwfgen_cpp.a ${OBJECTS}
-build/_c/lib/libwfgen_c.a : ${_C_OBJS}
-	ar -rc build/_c/lib/libwfgen_c.a ${_C_OBJS}
+# build/_c/lib/libwfgen_c.a : ${_C_OBJS}
+# 	ar -rc build/_c/lib/libwfgen_c.a ${_C_OBJS}
 build/_cpp/lib/libwfgen_cpp.so : ${OBJECTS}
 	g++ -shared ${LDFLAGS} -o build/_cpp/lib/libwfgen_cpp.so ${LIBS} ${OBJECTS}
-build/_c/lib/libwfgen_c.so : ${_C_OBJS}
-	gcc -shared ${LDFLAGS} -o build/_c/lib/libwfgen_c.so ${LIBS} ${_C_OBJS}
+# build/_c/lib/libwfgen_c.so : ${_C_OBJS}
+# 	gcc -shared ${LDFLAGS} -o build/_c/lib/libwfgen_c.so ${LIBS} ${_C_OBJS}
 
 wf_gen_cpp_libs : build/_cpp/lib/libwfgen_cpp.a build/_cpp/lib/libwfgen_cpp.so
-wf_gen_c_libs : build/_c/lib/libwfgen_c.a build/_c/lib/libwfgen_c.so
+# wf_gen_c_libs : build/_c/lib/libwfgen_c.a build/_c/lib/libwfgen_c.so
 
 ${PROGRAMS} : build/_cpp/% : %.cc | ${OBJECTS} wf_gen_cpp_libs
 	g++ -I${PYBOMBS_PREFIX}/include ${CXXFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_cpp/lib $< -o $@ -lwfgen_cpp ${LIBS}
@@ -93,19 +93,21 @@ ${PROGRAMS} : build/_cpp/% : %.cc | ${OBJECTS} wf_gen_cpp_libs
 ${TESTS} : build/_cpp/% : %.cc | ${OBJECTS} wf_gen_cpp_libs
 	-g++ -I${PYBOMBS_PREFIX}/include ${CXXFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_cpp/lib $< -o $@ -lwfgen_cpp ${LIBS}
 
-${_C_PROGS} : build/_c/% : %.cc | ${_C_OBJS} ${_C_POBJS} wf_gen_c_libs
-	-gcc -x c -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_c/lib ${_C_POBJS} -o $@ -lwfgen_c ${LIBS}
+# ${_C_PROGS} : build/_c/% : %.cc | ${_C_OBJS} ${_C_POBJS} wf_gen_c_libs
+# 	-gcc -x c -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_c/lib ${_C_POBJS} -o $@ -lwfgen_c ${LIBS}
 
-${_C_TEST} : build/_c/% : %.cc | ${_C_OBJS} ${_C_TOBJS} wf_gen_c_libs
-	gcc -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_c/lib ${_C_TOBJS} -o $@ -lwfgen_c ${LIBS}
+# ${_C_TEST} : build/_c/% : %.cc | ${_C_OBJS} ${_C_TOBJS} wf_gen_c_libs
+# 	gcc -I${PYBOMBS_PREFIX}/include ${CFLAGS} -L${PYBOMBS_PREFIX}/lib ${LDFLAGS} -L./build/_c/lib ${_C_TOBJS} -o $@ -lwfgen_c ${LIBS}
 
 run_tests: ${TESTS} ${_C_TEST}
 	for f in ${TESTS}; do LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:build/_cpp/lib  ./$$f; done
 	for f in ${_C_TEST}; do LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:build/_c/lib  ./$$f; done
 
-all						: builddir ${PROGRAMS} ${_C_PROGS}
+all						: builddir liquid ${PROGRAMS} #${_C_PROGS}
 
-test 					: builddir ${TESTS} ${_C_TEST} run_tests
+test 					: builddir ${TESTS}  run_tests #${_C_TEST}
+
+# python                  : 
 
 echo_debug:
 	@echo "SOURCES = ${SOURCES}"
@@ -126,11 +128,13 @@ echo_debug:
 
 
 install					: check-virtualenv all
-	cp ./build/apps/* ${VIRTUAL_ENV}/bin/
+	cd ./liquid-dsp && $(MAKE) install
+	cp ./build/_cpp/apps/* ${VIRTUAL_ENV}/bin/
+	cp ./build/_cpp/lib/libwfgen* ${VIRTUAL_ENV}/lib/
 
 uninstall				: check-virtualenv
-	rm $(patsubst apps/%.cc, ${VIRTUAL_ENV}/bin/%, ${APPS})
-	cd ./liquid-dsp && make uninstall
+	rm -f $(patsubst apps/%.cc, ${VIRTUAL_ENV}/bin/%, ${APPS})
+	cd ./liquid-dsp && $(MAKE) uninstall
 
 -include $(OBJECTS:.o=.d)
 -include $(_C_OBJS:.o=.d)
