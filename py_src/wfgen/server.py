@@ -39,13 +39,13 @@ def shutdown():
 class ServerRequests(object):
     def __init__(self, who_from, what_do):
         self.requester = who_from
-        self.action = what_do
+        self.action = what_do if isinstance(what_do,list) else [what_do]
     def get_message(self):
         return self.action
     def get_dest(self):
         return self.requester
     def get_payload(self):
-        return [self.requester] + encoder(self.action)
+        return [self.requester] + self.action
     def __str__(self):
         return f'<{repr(self.requester)} : {self.action}>'
     def __repr__(self):
@@ -69,7 +69,7 @@ class ServerNet(ServerNetworking):
             print(f"Unexpected type: {type(payload)}, ...dropping",flush=True)
         sid,msg = payload[0],payload[1]
         print("Wrapping Request:",sid,msg,flush=True)
-        request = ServerRequests(sid,decoder(msg[2:]))
+        request = ServerRequests(sid,decoder(msg))
         self.request_queue.append(request)
 
     def send_reply(self, reply_req:ServerRequests):
@@ -79,6 +79,7 @@ class ServerNet(ServerNetworking):
                 raise RuntimeError("Network issues...")
             msg = reply_req.get_payload()
             try:
+                # print("SENDING:",msg[0],msg[1:])
                 self.reply(msg[0],msg[1:])
             except Exception as e:
                 import traceback
@@ -482,7 +483,6 @@ def run(network_interface:ServerNet,
                         start_message = active_procs[idx][2]
                         # active_procs[idx][1].kill()
                         if not no_reply:
-                            # server.send_multipart(encoder(["Killing","process","{}".format(message[1])]))
                             cleanup_messages.append("Killing process {}".format(kill_slot))
                         if not isinstance(active_procs[idx][1],tuple):
                             if isinstance(active_procs[idx][1],mp.Process):
@@ -511,7 +511,6 @@ def run(network_interface:ServerNet,
                     else:
                         log_c.log(c_logger.level_t.INFO,"Not such process id to kill: {0!s}".format(int(kill_slot)))
                         if not no_reply:
-                            # server.send_multipart(encoder(["No","process","{}".format(message[1])]))
                             cleanup_messages.append("No process {}".format(message[1]))
                 if cleanup_messages:
                         reply = "\n".join(cleanup_messages)
