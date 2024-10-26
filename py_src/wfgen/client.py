@@ -715,22 +715,22 @@ class Client(object):
 
 
 class cli(cmd.Cmd,object):
-    _REPLAY_PROFILES = profiles.get_replay_profile_names()
+    _REPLAY_PROFILES = []#profiles.get_replay_profile_names()
     _LINMOD_PROFILES = profiles.linmod_available_mods
     _LINMOD_OPTIONS = profiles.get_base_options('static')
     _LINMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper')
     _FSKMOD_PROFILES = profiles.fskmod_available_mods
     _FSKMOD_OPTIONS = profiles.get_base_options('static','fsk')
     _FSKMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper','fsk')
-    _AFMOD_PROFILES = profiles.afmod_available_mods
-    _AFMOD_OPTIONS = profiles.get_base_options('static','analog')
-    # _AFMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper','analog')
-    _TONE_PROFILES = profiles.tones_available_mods
-    _TONE_OPTIONS = profiles.get_base_options('static','tone')
-    _TONE_HOPPER_OPTIONS = profiles.get_base_options('hopper','tone')
-    _OFDM_PROFILES = profiles.ofdm_available_mods
-    _OFDM_OPTIONS = profiles.get_base_options('ofdm')
-    _OFDM_SUBMODS = profiles.ofdm_submods
+    # _AFMOD_PROFILES = profiles.afmod_available_mods
+    # _AFMOD_OPTIONS = profiles.get_base_options('static','analog')
+    # # _AFMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper','analog')
+    # _TONE_PROFILES = profiles.tones_available_mods
+    # _TONE_OPTIONS = profiles.get_base_options('static','tone')
+    # _TONE_HOPPER_OPTIONS = profiles.get_base_options('hopper','tone')
+    # _OFDM_PROFILES = profiles.ofdm_available_mods
+    # _OFDM_OPTIONS = profiles.get_base_options('ofdm')
+    # _OFDM_SUBMODS = profiles.ofdm_submods
 
     # _STATIC_OPTIONS = profiles.get_base_options('static')
     # _BURSTY_OPTIONS = profiles.get_base_options('bursty')
@@ -738,9 +738,9 @@ class cli(cmd.Cmd,object):
 
     _AVAILABLE_PROFILES = ([] + _LINMOD_PROFILES
         + _FSKMOD_PROFILES
-        + _AFMOD_PROFILES
-        + _TONE_PROFILES
-        + _OFDM_PROFILES
+        # + _AFMOD_PROFILES
+        # + _TONE_PROFILES
+        # + _OFDM_PROFILES
         + _REPLAY_PROFILES)
     def __init__(self,network_interface:ClientNet, verbose=True, dev=True, use_log=False):
         super(cli,self).__init__()
@@ -984,7 +984,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -1002,7 +1002,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -1020,7 +1020,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -1038,7 +1038,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -1149,65 +1149,65 @@ class cli(cmd.Cmd,object):
                     return matches
                 matches = [i for i in option_helpers if i.startswith(text) and i not in option_labels]
                 return matches
-            elif prof_name in self._AFMOD_PROFILES:
-                option_helpers = prof_peek.get_options()
-                if profile_type in ["hopper","bursty"]:
-                    option_helpers = prof_peek.get_options('hopper')
-                if text == '':
-                    if item_count % 2 == 0:
-                        print   ("Provide value")
-                        return []
-                    else:
-                        return [i for i in option_helpers if i not in option_labels]
-                matches = [i for i in option_helpers if i.startswith(text)]
-                if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
-                    ### I've matched, and might match more than one, need to keep me in there too
-                    return matches
-                if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
-                    return matches
-                matches = [i for i in option_helpers if i.startswith(text) and i not in option_labels]
-                return matches
-            elif prof_name in self._OFDM_PROFILES:
-                option_helpers = self._OFDM_OPTIONS
-                if profile_type not in ['static','replay','hopper','bursty']:
-                    print("Invalid profile type to use this profile")
-                    return []
-                if text == '':
-                    if item_count & 0x1 == 0:
-                        print("Provide value")
-                        return []
-                    else:
-                        # return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
-                        return [i for i in option_helpers if i not in option_labels]
-                elif len(text) > 0 and item_count % 2 == 0:
-                    return [text]
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
-                if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
-                    ### I've matched, and might match more than one, need to keep me in there too
-                    return matches
-                if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
-                    return matches
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
-                return matches
-            elif prof_name in self._TONE_PROFILES:
-                option_helpers = self._TONE_OPTIONS
-                if profile_type not in ['static','replay','hopper','bursty']:
-                    print("Invalid profile type to use this profile")
-                    return []
-                if text == '':
-                    if item_count & 0x1 == 0:
-                        print("Provide value")
-                        return []
-                    else:
-                        return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
-                if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
-                    ### I've matched, and might match more than one, need to keep me in there too
-                    return matches
-                if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
-                    return matches
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
-                return matches
+            # elif prof_name in self._AFMOD_PROFILES:
+            #     option_helpers = prof_peek.get_options()
+            #     if profile_type in ["hopper","bursty"]:
+            #         option_helpers = prof_peek.get_options('hopper')
+            #     if text == '':
+            #         if item_count % 2 == 0:
+            #             print   ("Provide value")
+            #             return []
+            #         else:
+            #             return [i for i in option_helpers if i not in option_labels]
+            #     matches = [i for i in option_helpers if i.startswith(text)]
+            #     if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
+            #         ### I've matched, and might match more than one, need to keep me in there too
+            #         return matches
+            #     if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
+            #         return matches
+            #     matches = [i for i in option_helpers if i.startswith(text) and i not in option_labels]
+            #     return matches
+            # elif prof_name in self._OFDM_PROFILES:
+            #     option_helpers = self._OFDM_OPTIONS
+            #     if profile_type not in ['static','replay','hopper','bursty']:
+            #         print("Invalid profile type to use this profile")
+            #         return []
+            #     if text == '':
+            #         if item_count & 0x1 == 0:
+            #             print("Provide value")
+            #             return []
+            #         else:
+            #             # return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #             return [i for i in option_helpers if i not in option_labels]
+            #     elif len(text) > 0 and item_count % 2 == 0:
+            #         return [text]
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
+            #     if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
+            #         ### I've matched, and might match more than one, need to keep me in there too
+            #         return matches
+            #     if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
+            #         return matches
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #     return matches
+            # elif prof_name in self._TONE_PROFILES:
+            #     option_helpers = self._TONE_OPTIONS
+            #     if profile_type not in ['static','replay','hopper','bursty']:
+            #         print("Invalid profile type to use this profile")
+            #         return []
+            #     if text == '':
+            #         if item_count & 0x1 == 0:
+            #             print("Provide value")
+            #             return []
+            #         else:
+            #             return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
+            #     if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
+            #         ### I've matched, and might match more than one, need to keep me in there too
+            #         return matches
+            #     if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
+            #         return matches
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #     return matches
             else:
                 print("Don't know what options are available... but expected format:")
                 return ['<option>',' ','<value>']

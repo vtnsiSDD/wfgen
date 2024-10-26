@@ -10,7 +10,10 @@ using namespace writer;
 namespace containers{
 extern "C" {
 #endif
-
+// container_create
+// container_get_info
+// cburst_update
+// waveform_update_burst
 
 //////////////////////////////////////////////////////////////////////////
 // CONTAINERS
@@ -121,6 +124,9 @@ container container_create_empty(){
     return c;
 }
 
+// #ifdef __cplusplus
+// }
+// #endif
 container container_create(uint8_t type, uint64_t size, void* ptr){
     container c = container_create_empty();
     if(c == NULL) return c;
@@ -149,7 +155,8 @@ container container_create(uint8_t type, uint64_t size, void* ptr){
         else{
             c = adj;
             // c->ptr = (uint8_t)c+sizeof(container_t);
-            c->ptr = c+sizeof(container_t);
+            // c->ptr = c+sizeof(container_t);
+            c->ptr = (void *)((size_t)(&c->ptr) + sizeof(c->ptr));
             if(ptr != NULL)
                 memcpy( c->ptr, ptr, raw_size-sizeof(container_t) );
             else
@@ -169,7 +176,8 @@ container container_create(uint8_t type, uint64_t size, void* ptr){
         else{
             c = adj;
             // c->ptr = (uint8_t)c+sizeof(container_t);
-            c->ptr = c+sizeof(container_t);
+            // c->ptr = c+sizeof(container_t);
+            c->ptr = (void *)((size_t)(&c->ptr) + sizeof(c->ptr));
             if(ptr != NULL)
                 memcpy( c->ptr, ptr, raw_size-sizeof(container_t) );
             else
@@ -192,16 +200,6 @@ container container_create(uint8_t type, uint64_t size, void* ptr){
     return c;
 }
 
-void container_destroy(container *c){
-    if(c == NULL) return;
-    if((*c) == NULL) return;
-    // printf("XXX Root: %p\tValue:%p\n",c,*c);
-    // if((*c)->type & 0x80){ // if owner
-    //     if((*c)->ptr != NULL) free((*c)->ptr);
-    // }
-    free(*c);
-    *c = NULL;
-}
 
 void container_get_info(container c, uint64_t *items, uint64_t *itemsize, size_t *binsize){
     uint64_t base_size = get_empty_content_size(c->type&0x3F);
@@ -230,6 +228,20 @@ void container_get_info(container c, uint64_t *items, uint64_t *itemsize, size_t
             *binsize = c->size;
         }
     }
+}
+
+// #ifdef __cplusplus
+// extern "C" {
+// #endif
+void container_destroy(container *c){
+    if(c == NULL) return;
+    if((*c) == NULL) return;
+    // printf("XXX Root: %p\tValue:%p\n",c,*c);
+    // if((*c)->type & 0x80){ // if owner
+    //     if((*c)->ptr != NULL) free((*c)->ptr);
+    // }
+    free(*c);
+    *c = NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -278,6 +290,9 @@ void cburst_destroy(cburst *b){
     *b = NULL;
 }
 
+// #ifdef __cplusplus
+// }
+// #endif
 void cburst_update(cburst b, uint8_t *src, double *fc, double *fs, double *bw,
         double *ts, uint64_t *max_samples){
     if (b==NULL) return;
@@ -299,13 +314,16 @@ void cburst_update(cburst b, uint8_t *src, double *fc, double *fs, double *bw,
         }
     }
 }
+// #ifdef __cplusplus
+// extern "C" {
+// #endif
 
 void cburst_set_pointer(cburst b, uint64_t samples, fc32 *ptr){
     if (b==NULL) return;
     if (b->ownership){//releasing ownership here
         size_t orig_size = b->size;
         b->size = sizeof(cburst_t);
-        void *adj = realloc(b, b->size);;
+        void *adj = realloc(b, b->size);
         if(adj == NULL){
             printf("Minimal leak of %lu bytes, maximum leak of %lu bytes",orig_size-b->size, orig_size);
         }
@@ -528,6 +546,9 @@ void waveform_add_burst(waveform wf, cburst b){
     // size_t 
     
 }
+// #ifdef __cplusplus
+// }
+// #endif
 void waveform_update_burst(waveform wf, uint64_t burst_index,
         uint8_t *src, double *fc, double *fs, double *bw,
         double *ts, uint64_t *max_samples){
@@ -537,6 +558,9 @@ void waveform_update_burst(waveform wf, uint64_t burst_index,
     cburst _b = (cburst)&wf->burst_array[burst_index];
     cburst_update(_b, src, fc, fs, bw, ts, max_samples);
 }
+// #ifdef __cplusplus
+// extern "C" {
+// #endif
 void waveform_set_burst_pointer(waveform wf, uint64_t burst_index,
         uint64_t samples, fc32* data){
     if (wf == NULL) return;

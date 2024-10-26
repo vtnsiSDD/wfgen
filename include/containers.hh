@@ -61,6 +61,7 @@ typedef enum burst_src_e{
 typedef struct container_s{
     uint8_t     type;
     uint64_t    size;
+    uint8_t     res[7];
     void        *ptr;
 } container_t;
 typedef container_t * container;
@@ -84,8 +85,10 @@ typedef cburst_t * cburst;
 
 container container_create_empty();
 #ifdef __cplusplus
+// }
 container container_create(uint8_t type, uint64_t size, void* ptr=NULL);
 void container_get_info(container c, uint64_t *items=NULL, uint64_t *itemsize=NULL, size_t *binsize=NULL);
+// extern "C" {
 #else
 container container_create(uint8_t type, uint64_t size, void* ptr);
 void container_get_info(container c, uint64_t *items, uint64_t *itemsize, size_t *binsize);
@@ -96,9 +99,11 @@ cburst cburst_create_empty();
 cburst cburst_create(uint8_t src, double fc, double fs, double bw, double ts, uint64_t max_samples);
 void cburst_destroy(cburst* b);
 #ifdef __cplusplus
+// }
 void cburst_update(cburst b,
         uint8_t *src=NULL, double *fc=NULL, double *fs=NULL, double *bw=NULL,
         double *ts=NULL, uint64_t *max_samples=NULL);
+// extern "C" {
 #else
 void cburst_update(cburst b,
         uint8_t *src, double *fc, double *fs, double *bw,
@@ -149,9 +154,11 @@ waveform waveform_create_empty();
 waveform waveform_create(uint8_t characteristics, uint64_t n_bursts, uint64_t max_samples);
 void waveform_destroy(waveform *wf);
 #ifdef __cplusplus
+// }
 void waveform_update_burst(waveform wf, uint64_t burst_index,
         uint8_t *src=NULL, double *fc=NULL, double *fs=NULL, double *bw=NULL,
         double *ts=NULL, uint64_t *max_samples=NULL);
+// extern "C" {
 #else
 void waveform_update_burst(waveform wf, uint64_t burst_index,
         uint8_t *src, double *fc, double *fs, double *bw,
