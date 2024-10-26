@@ -1,0 +1,9 @@
+{
+    "server_connections":[
+        {
+            "server_addr":  "127.115.97.105",
+            "server_port":  "51515",
+            "server_ssh":   0
+        }
+    ]
+}

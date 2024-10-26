@@ -3,27 +3,33 @@ import cmd
 import zmq
 import zmq.ssh
 import argparse
-import yaml
+import yaml,json
 import subprocess
 import shlex
 import sys
-from typing import List
+from typing import List,Union
 import tempfile
 import os
 import numpy as np
 import pprint
+import time
+
+from queue import deque
+from pynet import ClientNetworking
 
 WG_CLIENT_API_VERSION = 0x01000000
 
 try:
-    from .utils import get_interface,paramify,MultiSocket,Ettus_USRP_container
+    from .utils import get_interface,decoder,paramify,MultiSocket,Ettus_USRP_container
     from .c_logger import logger_client,fake_log,logger as c_logger
     from . import profiles
 except:
     ## fall back for direct exection
-    from wfgen.utils import get_interface,paramify,MultiSocket,Ettus_USRP_container
+    from wfgen.utils import get_interface,decoder,paramify,MultiSocket,Ettus_USRP_container
     from wfgen import logger_client,fake_log,c_logger
     from wfgen import profiles
+
+DEBUGGING_CLIENT=True
 
 
 def line2start_radio(line):
@@ -175,6 +181,103 @@ class radio_plan_tracker(object):
                 break
         return available
 
+class ClientRequests(object):
+    REQUEST_ID=0
+    @staticmethod
+    def _getid():
+        v = ClientRequests.REQUEST_ID
+        ClientRequests.REQUEST_ID+=1
+        return v
+
+    def __init__(self, server_list, what_do):
+        self.cid = ClientRequests._getid()
+        self.servers = server_list if isinstance(server_list,list) else [server_list]
+        self.action = what_do if isinstance(what_do,list) else [what_do]
+    def get_message(self):
+        return self.action if len(self.action) > 1 else self.action[0]
+    def get_dest(self):
+        return self.servers
+    def get_payload(self):
+        return self.servers + [b""] + self.action
+    def __str__(self):
+        return f'<{self.servers} : {self.action}>'
+    def __repr__(self):
+        return self.__str__()
+
+class ClientNet(ClientNetworking):
+    def __init__(self,filepath):
+        if not os.path.exists(filepath):
+            raise RuntimeError(f"network config file does not exist: {filepath}")
+        endpoints = []
+        self.sshing = []
+        with open(filepath,'r') as fp:
+            config = json.load(fp)
+        if 'server_connections' not in config:
+            endpoints.append(f"{config['server_addr']}:{config['server_port']}")
+            self.sshing.append(0 if 'server_ssh' not in config else config['server_ssh'])
+        else:
+            for cfg in config['server_connections']:
+                endpoints.append(f"{cfg['server_addr']}:{cfg['server_port']}")
+                self.sshing.append(cfg['server_ssh'])
+        self.request_queue = deque()
+        super().__init__(endpoints)
+        self.set_callback(self.handle_tasks)
+
+    def send_request(self, request:ClientRequests):
+        # print("net_req:",request)
+        if self.listener is not None:
+            if self.listener.is_stopped():
+                print("BG STOPPED:", self.listener.reason)
+                raise
+            # dests = request.get_dest()
+            # msg = request.get_message()
+            try:
+                # for d in dests:
+                    # self.send([d,b'']+(msg if isinstance(msg,list) else [msg,]))
+                payload = request.get_payload()
+                self._send(payload)
+            except Exception as e:
+                import traceback
+                self.stop("\n".join(["-MAIN THREAD ERROR-",traceback.format_exc()]))
+                raise
+            return len(self.endpoints)
+        return None
+
+    def send(self,msg:Union[str,bytes,ClientRequests]):
+        if isinstance(msg,ClientRequests):
+            return self.send_request(msg)
+        return super().send(msg)
+
+    def _send(self,payload:List[Union[str,bytes]],debug=False):
+        if not isinstance(payload,list):
+            raise ValueError("can only process lists here")
+        splitter = payload.index(b'') if b'' in payload else 0
+        dests = payload[:splitter]
+        msg = payload[(splitter+1 if b'' in payload else splitter):]
+        for d in dests:
+            self.reply_map[d].append(msg)
+            if self._mpipe is not None:
+                to_pipe = {"send":msg,"sid":d}
+                if debug:
+                    to_pipe['debug'] = True
+                self._mpipe.send(to_pipe)
+
+    def disconnect(self):
+        super().close()
+
+    def handle_tasks(self,payload):
+        if not isinstance(payload,tuple):
+            print("Unknown type observed:",type(payload),"...dropping")
+        sid,msg = payload[0],payload[1:]
+        request = ClientRequests(sid,msg)
+        self.request_queue.append(request)
+
+    def get(self,n,force=False):
+        if len(self.request_queue) >= n or force:
+            return [self.request_queue.popleft() if self.request_queue else None for _ in range(n)]
+        return None
+    def clear(self):
+        self.request_queue.clear()
 
 class Client(object):
     _not_connected = "Not connected"
@@ -185,105 +288,123 @@ class Client(object):
     :param port: the integer value of the port to connect to (defaults to 50000)
     :return: A client through which programs can be interfaced
     """
-    def __init__(self,addrs:List[str]=[],ports:List[int]=[],ssh_tunnel:List[bool]=[],use_log=False):
-        if(len(addrs) == 0):
-            # Assuming a local connection only
-            self.addrs = [get_interface()]
-        else:
-            self.addrs = [x for x in addrs]
-        self.ports = ports
-        self.conn = MultiSocket()
-        self.sshs = ssh_tunnel
+    def __init__(self,network_interface:ClientNet,use_log=False):
+        self.network = network_interface
         self.tunnel = None
         self.radios = None
-        self.server_there = False
-        self.conn_addrs = [None]*len(self.addrs)
-        for idx,(a,s) in enumerate(zip(self.addrs,self.sshs)):
-            if(s == True):
-                self.conn_addrs[idx] = '127.0.0.1'
-            else:
-                self.conn_addrs[idx] = a
+        self.running = False
+        self.action_queues = dict([
+            # ('pingpong',deque()),
+            ('get_radios',deque()),
+            ('get_active',deque()),
+            ('get_finished',deque()),
+            ('get_truth',deque()),
+            ('start_radio',deque()),
+            ('kill',deque()),
+            ('run_script',deque()),
+            ('run_random',deque()),
+            ('shutdown',deque()),
+        ])
         self.log_c = logger_client("Client") if use_log else fake_log("Client",cout=False)
 
     def is_connected(self):
-        if len(self.conn) == len(self.addrs):
-            if self.server_there:
-                return True
-            else:
-                self.conn.setsockopt(zmq.REQ_RELAXED,1)
-                self.conn.setsockopt(zmq.REQ_CORRELATE,1)
-                self.conn.send_multipart(['ping'])## encoder moved internal
-                if self.conn.poll(timeout=5000., event=zmq.POLLIN) != 0:#ms
-                    if all([x[0] == "pong" for x in self.conn.recv_multipart()]):
-                        self.conn.setsockopt(zmq.REQ_RELAXED,0)
-                        self.conn.setsockopt(zmq.REQ_CORRELATE,0)
-                        self.server_there = True
-                        return True
-                self.server_there = False
+        if self.network.listener is None:
+            return False
+        if len(self.network.state_map) and all([x == 1 for x in self.network.state_map.values()]):
+            return True
+        elif len(self.network.state_map):
+            self.network.ping()
+            return all([x == 1 for x in self.network.state_map.values()])
         return False
 
     def disconnect(self):
         if not self.is_connected():
             return
-        self.conn.close()
-        self.conn = MultiSocket()
+        self.network.reset()
+
+    def close(self):
+        self.network.close()
 
     def connect(self):
         if self.is_connected():
-            self.conn.close()
-        
-        self.tunnel = [None]*len(self.addrs)
-        for idx,(a,p,s) in enumerate(zip(self.addrs,self.ports,self.sshs)):
+            return
+
+        self.tunnel = [None]*len(self.network.sshing)
+        for idx,(eps,s) in enumerate(zip(self.network.endpoints,self.network.sshing)):
             if(s == True):
-                self.tunnel[idx] = zmq.ssh.openssh_tunnel(p,p,a,a,timeout=10)
-        
-        self.conn.connect(self.conn_addrs,self.ports)
-        # if self.ssh:
-        #     self.tunnel = zmq.ssh.openssh_tunnel(self.port,self.port,
-        #         self.addr,self.addr,timeout=10) # tunnel closes after 10s inactivity
-        #     self.conn.connect("tcp://127.0.0.1:{}".format(self.port))
-        # else:
-        #     self.conn.connect("tcp://{}:{}".format(self.addr,self.port))
+                a_,p_ = eps.split(":")
+                self.tunnel[idx] = zmq.ssh.openssh_tunnel(p_,p_,a_,a_,timeout=10)
+                a = '127.115.97.105'
+                self.network.endpoints[idx] = ":".join([a,p_])
+        self.network.connect()
+        self.network.ping()
+        self.running = True
+
+    def __get_response(self,expected,timeout,required,who_from):
+        response = self.network.get(expected)
+        while self.running and response is None:
+            time.sleep(1)
+            timeout -= 1
+            if timeout == 0:
+                break
+            response = self.network.get(expected)
+        #############
+        # debug
+        #############
+        if DEBUGGING_CLIENT:
+            print("---timeout remaining:",timeout)
+        #############
+        #############
+        if response is None:
+            print("...not all connections replied")
+            response = self.network.get(expected,True)
+        if sum([x is not None for x in response]) >= required:
+            response = [x for x in response if x is not None]
+            return response
+        elif any([x is not None for x in response]):
+            response = [x for x in response if x is not None]
+            return [who_from,"timeout"] + response
+        return [who_from,"timeout"]
 
     def get_help(self):
         if not self.is_connected():
             return self._not_connected
-        # self.conn.send_multipart(encoder(["help","me"]))
-        # reply = decoder(self.conn.recv_multipart())
-        expected = self.conn.send_multipart(["help","me"])
-        reply = self.conn.recv_multipart(expected)
-        return "\n\t".join(reply[0])
+        self.network.clear()
+        expected = self.network.send(ClientRequests(self.network.endpoint,["help","me"]))
+        response = self.__get_response(expected,10,1,'get_help')
+        if 'timeout' not in response:
+            response = decoder(response[0].get_message()[0])
+        return "\n\t".join(response)
 
     def get_radios(self):
         if not self.is_connected():
             return self._not_connected
-        # self.conn.send_multipart(encoder(["get_radios",""]))
-        # reply = decoder(self.conn.recv_multipart())
-        expected = self.conn.send_multipart(["get_radios",""])
-        reply = self.conn.recv_multipart(expected)
-        # print("raw get_radios:")
-        # print(repr(reply))
-        return ["".join(x) for x in reply]
+        self.network.clear()
+        expected = self.network.send(ClientRequests(self.network.endpoint,["get_radios",""]))
+        response = self.__get_response(expected,30,expected,'get_radios')
+        if 'timeout' not in response:
+            response = ["".join(decoder(x.get_message()[0])) for x in response]
+        return response
 
     def get_active(self):
         if not self.is_connected():
             return self._not_connected
-        # self.conn.send_multipart(encoder(["get_active",""]))
-        # reply = decoder(self.conn.recv_multipart())
         command = ["get_active",""]
-        expect_nreplies = self.conn.send_multipart(command)
-        reply = self.conn.recv_multipart(expect_nreplies)
-        return "\n".join([" ".join(x) for x in reply])
+        expect_nreplies = self.network.send(ClientRequests(self.network.endpoint,command))
+        response = self.__get_response(expect_nreplies,10,expect_nreplies,'get_active')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
 
     def get_finished(self):
         if not self.is_connected():
             return self._not_connected
-        # self.conn.send_multipart(encoder(["get_finished",""]))
-        # reply = decoder(self.conn.recv_multipart())
         command = ["get_finished",""]
-        expect_nreplies = self.conn.send_multipart(command)
-        reply = self.conn.recv_multipart(expect_nreplies)
-        return "\n".join([" ".join(x) for x in reply])
+        expect_nreplies = self.network.send(ClientRequests(self.network.endpoint,command))
+        response = self.__get_response(expect_nreplies,10,expect_nreplies,'get_finished')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
 
     def start_radio_command(self, dev_idx, mode, profile, params):
         if not self.is_connected():
@@ -301,11 +422,11 @@ class Client(object):
         command = ["start_radio",mode,
                    '-a {0:s}'.format(self.radios.radios[dev_idx]['args'])] + split_line[2:]
         print("sending command:",command)
-        # self.conn.send_multipart(encoder(command))
-        # reply = decoder(self.conn.recv_multipart())
-        expect_nreplies = self.conn.send_multipart(command)
-        reply = self.conn.recv_multipart(expect_nreplies)
-        return "\n".join([" ".join(x) for x in reply])
+        expect_nreplies = self.network.send(ClientRequests(self.network.endpoint,command))
+        response = self.__get_response(expect_nreplies,10,expect_nreplies,'get_finished')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
 
     def kill_id(self,pid):
         if not self.is_connected():
@@ -314,30 +435,36 @@ class Client(object):
             return "Get radios first!"
         command = ["kill","{0!s}".format(pid)]
         print("sending command:",command)
-        # self.conn.send_multipart(encoder(command))
-        # reply = decoder(self.conn.recv_multipart())
-        nreplies = self.conn.send_multipart(command)
-        reply = self.conn.recv_multipart(nreplies)
-        return "\n".join([" ".join(x) for x in reply])
+        nreplies = self.network.send(ClientRequests(self.network.endpoint,command))
+        response = self.__get_response(nreplies,60,nreplies,'kill')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
 
     def shutdown(self):
         if not self.is_connected():
             return self._not_connected
-        # self.conn.send_multipart(encoder(["shutdown","now"]))
-        # reply = decoder(self.conn.recv_multipart())
-        nreply = self.conn.send_multipart(["shutdown","now"])
-        reply = self.conn.recv_multipart(nreply)
-        return "\n".join([" ".join(x) for x in reply])
+        nreplies = self.network.send(ClientRequests(self.network.endpoint,["shutdown","now"]))
+        response = self.__get_response(nreplies,60,nreplies,'shutdown')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
     
     def collect_truth(self,outfile=None):
         if not self.is_connected():
             return self._not_connected
-        nreply = self.conn.send_multipart(["get_truth",outfile])
-        reply = self.conn.recv_multipart(nreply)
+        nreplies = self.network.send(ClientRequests(self.network.endpoint,["get_truth",outfile]))
+        response = self.__get_response(nreplies,60,nreplies,'get_truth')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        else:
+            timeout = response[:2]
+            print(timeout)
+            response = [" ".join(decoder(x.get_message()[0])) for x in response[2:]]
         file_count = 0
         with tempfile.TemporaryDirectory() as tmpdir:
             proto = 'truth_report_{0:03d}.json'
-            for idx,sr in enumerate(reply):
+            for idx,sr in enumerate(response):
                 self.log_c.log(c_logger.level_t.INFO,f"{idx}, {sr[:2]}")
                 if sr[1] != 'empty':
                     file_count += 1
@@ -553,9 +680,11 @@ class Client(object):
         ### radio_structure[radio_args] = [[seed list], {sig:sig, timinig:timinig}, ... ]
 
         command = ['run_script',yaml.dump(radio_structure)]
-        self.conn.send_multipart(command)
-        reply = self.conn.recv_multipart()
-        return '\n'.join([' '.join(x) for x in reply])
+        expect_nreplies = self.network.send(ClientRequests(self.network.endpoint,command))
+        response = self.__get_response(expect_nreplies,10,expect_nreplies,'run_script')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
 
     @staticmethod
     def get_run_random_fields():
@@ -573,9 +702,11 @@ class Client(object):
             return "invalid radio index has been provided"
 
         command = ['run_random',yaml.dump(rr_config)]
-        self.conn.send_multipart(command)
-        reply = self.conn.recv_multipart()
-        return '\n'.join([' '.join(x) for x in reply])
+        expect_nreplies = self.network.send(ClientRequests(self.network.endpoint,command))
+        response = self.__get_response(expect_nreplies,10,expect_nreplies,'run_random')
+        if 'timeout' not in response:
+            response = [" ".join(decoder(x.get_message()[0])) for x in response]
+        return "\n".join(response)
 
 
 
@@ -584,22 +715,22 @@ class Client(object):
 
 
 class cli(cmd.Cmd,object):
-    _REPLAY_PROFILES = profiles.get_replay_profile_names()
+    _REPLAY_PROFILES = []#profiles.get_replay_profile_names()
     _LINMOD_PROFILES = profiles.linmod_available_mods
     _LINMOD_OPTIONS = profiles.get_base_options('static')
     _LINMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper')
     _FSKMOD_PROFILES = profiles.fskmod_available_mods
     _FSKMOD_OPTIONS = profiles.get_base_options('static','fsk')
     _FSKMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper','fsk')
-    _AFMOD_PROFILES = profiles.afmod_available_mods
-    _AFMOD_OPTIONS = profiles.get_base_options('static','analog')
-    # _AFMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper','analog')
-    _TONE_PROFILES = profiles.tones_available_mods
-    _TONE_OPTIONS = profiles.get_base_options('static','tone')
-    _TONE_HOPPER_OPTIONS = profiles.get_base_options('hopper','tone')
-    _OFDM_PROFILES = profiles.ofdm_available_mods
-    _OFDM_OPTIONS = profiles.get_base_options('ofdm')
-    _OFDM_SUBMODS = profiles.ofdm_submods
+    # _AFMOD_PROFILES = profiles.afmod_available_mods
+    # _AFMOD_OPTIONS = profiles.get_base_options('static','analog')
+    # # _AFMOD_HOPPER_OPTIONS = profiles.get_base_options('hopper','analog')
+    # _TONE_PROFILES = profiles.tones_available_mods
+    # _TONE_OPTIONS = profiles.get_base_options('static','tone')
+    # _TONE_HOPPER_OPTIONS = profiles.get_base_options('hopper','tone')
+    # _OFDM_PROFILES = profiles.ofdm_available_mods
+    # _OFDM_OPTIONS = profiles.get_base_options('ofdm')
+    # _OFDM_SUBMODS = profiles.ofdm_submods
 
     # _STATIC_OPTIONS = profiles.get_base_options('static')
     # _BURSTY_OPTIONS = profiles.get_base_options('bursty')
@@ -607,13 +738,13 @@ class cli(cmd.Cmd,object):
 
     _AVAILABLE_PROFILES = ([] + _LINMOD_PROFILES
         + _FSKMOD_PROFILES
-        + _AFMOD_PROFILES
-        + _TONE_PROFILES
-        + _OFDM_PROFILES
+        # + _AFMOD_PROFILES
+        # + _TONE_PROFILES
+        # + _OFDM_PROFILES
         + _REPLAY_PROFILES)
-    def __init__(self,addrs, ports, use_sshs, verbose=True, dev=True, use_log=False):
+    def __init__(self,network_interface:ClientNet, verbose=True, dev=True, use_log=False):
         super(cli,self).__init__()
-        self.client = Client(addrs, ports, use_sshs,use_log=use_log)
+        self.client = Client(network_interface,use_log=use_log)
         self.radios = None
         self.verbose = verbose
         self.use_log = use_log #### not using this here at the moment
@@ -853,7 +984,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -871,7 +1002,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -889,7 +1020,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -907,7 +1038,7 @@ class cli(cmd.Cmd,object):
                     matches = [i for i in self._AVAILABLE_PROFILES if i.startswith(text)]
                 elif initial_mode in ['bursty','hopper']:
                     ### constrained for now
-                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
+                    matches = [i for i in self._LINMOD_PROFILES + self._FSKMOD_PROFILES]# + self._AFMOD_PROFILES + self._OFDM_PROFILES + [self._TONE_PROFILES[0]] if i.startswith(text)]
                 else:
                     print("\n  Somehow have an initial mode that isn't tracked -- ?")
                     return []
@@ -1018,65 +1149,65 @@ class cli(cmd.Cmd,object):
                     return matches
                 matches = [i for i in option_helpers if i.startswith(text) and i not in option_labels]
                 return matches
-            elif prof_name in self._AFMOD_PROFILES:
-                option_helpers = prof_peek.get_options()
-                if profile_type in ["hopper","bursty"]:
-                    option_helpers = prof_peek.get_options('hopper')
-                if text == '':
-                    if item_count % 2 == 0:
-                        print   ("Provide value")
-                        return []
-                    else:
-                        return [i for i in option_helpers if i not in option_labels]
-                matches = [i for i in option_helpers if i.startswith(text)]
-                if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
-                    ### I've matched, and might match more than one, need to keep me in there too
-                    return matches
-                if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
-                    return matches
-                matches = [i for i in option_helpers if i.startswith(text) and i not in option_labels]
-                return matches
-            elif prof_name in self._OFDM_PROFILES:
-                option_helpers = self._OFDM_OPTIONS
-                if profile_type not in ['static','replay','hopper','bursty']:
-                    print("Invalid profile type to use this profile")
-                    return []
-                if text == '':
-                    if item_count & 0x1 == 0:
-                        print("Provide value")
-                        return []
-                    else:
-                        # return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
-                        return [i for i in option_helpers if i not in option_labels]
-                elif len(text) > 0 and item_count % 2 == 0:
-                    return [text]
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
-                if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
-                    ### I've matched, and might match more than one, need to keep me in there too
-                    return matches
-                if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
-                    return matches
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
-                return matches
-            elif prof_name in self._TONE_PROFILES:
-                option_helpers = self._TONE_OPTIONS
-                if profile_type not in ['static','replay','hopper','bursty']:
-                    print("Invalid profile type to use this profile")
-                    return []
-                if text == '':
-                    if item_count & 0x1 == 0:
-                        print("Provide value")
-                        return []
-                    else:
-                        return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
-                if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
-                    ### I've matched, and might match more than one, need to keep me in there too
-                    return matches
-                if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
-                    return matches
-                matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
-                return matches
+            # elif prof_name in self._AFMOD_PROFILES:
+            #     option_helpers = prof_peek.get_options()
+            #     if profile_type in ["hopper","bursty"]:
+            #         option_helpers = prof_peek.get_options('hopper')
+            #     if text == '':
+            #         if item_count % 2 == 0:
+            #             print   ("Provide value")
+            #             return []
+            #         else:
+            #             return [i for i in option_helpers if i not in option_labels]
+            #     matches = [i for i in option_helpers if i.startswith(text)]
+            #     if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
+            #         ### I've matched, and might match more than one, need to keep me in there too
+            #         return matches
+            #     if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
+            #         return matches
+            #     matches = [i for i in option_helpers if i.startswith(text) and i not in option_labels]
+            #     return matches
+            # elif prof_name in self._OFDM_PROFILES:
+            #     option_helpers = self._OFDM_OPTIONS
+            #     if profile_type not in ['static','replay','hopper','bursty']:
+            #         print("Invalid profile type to use this profile")
+            #         return []
+            #     if text == '':
+            #         if item_count & 0x1 == 0:
+            #             print("Provide value")
+            #             return []
+            #         else:
+            #             # return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #             return [i for i in option_helpers if i not in option_labels]
+            #     elif len(text) > 0 and item_count % 2 == 0:
+            #         return [text]
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
+            #     if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
+            #         ### I've matched, and might match more than one, need to keep me in there too
+            #         return matches
+            #     if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
+            #         return matches
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #     return matches
+            # elif prof_name in self._TONE_PROFILES:
+            #     option_helpers = self._TONE_OPTIONS
+            #     if profile_type not in ['static','replay','hopper','bursty']:
+            #         print("Invalid profile type to use this profile")
+            #         return []
+            #     if text == '':
+            #         if item_count & 0x1 == 0:
+            #             print("Provide value")
+            #             return []
+            #         else:
+            #             return [i for idx,i in enumerate(option_helpers) if i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and prof_peek.option_flags[idx] is not None]
+            #     if text in option_labels and option_labels.count(text) == 1 and option_labels[-1] == text:
+            #         ### I've matched, and might match more than one, need to keep me in there too
+            #         return matches
+            #     if len(matches) == 1 and sum([o.startswith(text) for o in option_labels]) == 1:
+            #         return matches
+            #     matches = [i for idx,i in enumerate(option_helpers) if i.startswith(text) and i not in option_labels and prof_peek.option_flags[idx] is not None]
+            #     return matches
             else:
                 print("Don't know what options are available... but expected format:")
                 return ['<option>',' ','<value>']
@@ -1088,7 +1219,7 @@ class cli(cmd.Cmd,object):
         self.client.connect()
 
     def postloop(self):
-        self.client.disconnect()
+        self.client.close()
 
     def emptyline(self):
         pass
@@ -1252,8 +1383,8 @@ class cli(cmd.Cmd,object):
 
         return None
 
-def run(addr=[],port=50000,use_ssh=True,verbose=True,dev=False,use_log=False):
-    c = cli(addr,port,use_ssh,verbose,dev,use_log=use_log)
+def run(network_interface:ClientNet,verbose=True,dev=False,use_log=False):
+    c = cli(network_interface,verbose,dev,use_log=use_log)
     try:
         c.cmdloop()
     except KeyboardInterrupt:
@@ -1264,21 +1395,32 @@ def parse_args():
     # p.add_argument("--addr",default=[],type=str,action='append',help="Interface address to connect to. Defaults to internet connection for local testing.")
     # p.add_argument("--port",default=50000,type=int,help="Port to connect to (def: %(default)s)")
     # p.add_argument("--disable-ssh",action="store_true",help="Don't use ssh tunnel to talk to server.")
-    p.add_argument("--conn",default=[],action='append',nargs=3,metavar=('addr','port','use_ssh'),
-        help=("Unique interface address to connect to. Default: host<internet connection IP> 50000 False"))
+    # p.add_argument("--conn",default=[],action='append',nargs=3,metavar=('addr','port','use_ssh'),
+    #     help=("Unique interface address to connect to. Default: host<internet connection IP> 50000 False"))
+    p.add_argument('--net-config',
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)),'default_client.json'),
+        type=str,help=f'Json file with a server network configuration (def: default_client.json)')
     p.add_argument("--verbose",action="store_true",help="Should the cli spit out everything?")
     p.add_argument("--dev",action="store_true",help="Should the cli spit out dev messages?")
     p.add_argument("--log-server",action='store_true',help="Use if a log-server is active (meant for debugging)")
     args = p.parse_args()
-    args.addrs,args.ports,args.sshs = zip(*args.conn)
-    args.addrs = list(args.addrs)
-    args.ports = list(args.ports)
-    args.sshs = list(args.sshs)
+    # args.addrs,args.ports,args.sshs = zip(*args.conn)
+    # args.addrs = list(args.addrs)
+    # args.ports = list(args.ports)
+    # args.sshs = list(args.sshs)
     return args
 
 def main():
     args = parse_args()
-    run(args.addrs,args.ports,args.sshs,args.verbose,args.dev,use_log=args.log_server)
+    network = ClientNet(filepath=args.net_config)
+    try:
+        run(network,args.verbose,args.dev,use_log=args.log_server)
+    except:
+        import traceback
+        traceback.print_exc()
+    finally:
+        network.disconnect()
+
 
 if __name__ == "__main__":
     main()

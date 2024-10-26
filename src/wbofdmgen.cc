@@ -1,7 +1,10 @@
 
+#ifdef __cplusplus
 #include <iostream>
+#endif
 #include "wbofdmgen.hh"
 
+#ifdef __cplusplus
 wbofdmgen::wbofdmgen(unsigned int _nfft,
                      unsigned int _cplen,
                      unsigned int _ncarrier,
@@ -82,4 +85,4 @@ void wbofdmgen::generate(std::complex<float> * _buf, unsigned int symbols)
                 buf_time[id], cplen*sizeof(std::complex<float>));
     }
 }
-
+#endif

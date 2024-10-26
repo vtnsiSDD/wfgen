@@ -23,11 +23,11 @@ struct signal_modulation_s {
 #define SIGNAL_MODULATION_LIST_LEN (80)
 
 // list of modulation/mapping
-extern const signal_modulation_s signal_modulation_list[SIGNAL_MODULATION_LIST_LEN];
-
+extern const struct signal_modulation_s signal_modulation_list[SIGNAL_MODULATION_LIST_LEN];
+#ifdef __cplusplus
 // get index of above map given label name as input
 unsigned int signal_modulation_map_label_to_index(std::string _name_label);
-
+#endif
 // get index of above map given modulation type as input
 unsigned int signal_modulation_map_ms_to_index(modulation_scheme _ms);
 

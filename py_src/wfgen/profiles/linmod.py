@@ -100,6 +100,8 @@ class _linmod(_profile):
             try:
                 if opt in skip_keys:
                     continue
+                if flgs[idx] is None:
+                    continue
                 # print('{0:<3s}'.format(str(idx)),
                 #       '{0:<20s}'.format(str(opt)),
                 #       '{0:<6s}'.format(str(opt in params)),

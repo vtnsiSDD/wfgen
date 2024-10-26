@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "modulation.hh"
-
+#ifdef __cplusplus
 class labels
 {
   public:
@@ -84,14 +84,11 @@ class labels
     std::string device_origin;
     double      eng_bw;    ///< bw of energy burst should be constant
 };
+#else
+typedef struct labels_s{
 
-/******************************************************************************************/
-// Preserving old functionality until I update all scripts
-void append_json(FILE * fid, double tic, float dur, float fc, float bw, unsigned int index);
-// finalize .json
-void finalize_json_verbose(FILE * fid, double start, double stop, float fc, float bw, unsigned int count,
-                        std::string activty, std::string protocol, std::string modulation,
-                        std::string modality, std::string device);
+} labels;
 
+#endif
 #endif /* __LABELS_HH__ */
 

@@ -6,14 +6,17 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
-
+#ifdef __cplusplus
 #include <complex>
+#else
+#include <complex.h>
+#endif
 #include "liquid.h"
 #include "analog.hh"
 
 // report error specifically for invalid object configuration 
 // report error
-inline void * liquid_error_config_al(const char * _file,
+static inline void * liquid_error_config_al(const char * _file,
                               int          _line,
                               const char * _format,
                               ...)
@@ -104,6 +107,8 @@ typedef enum {
     LIQUID_ANALOG_AM_WAV_FILE,
     LIQUID_ANALOG_AM_RAND_UNI,
     LIQUID_ANALOG_AM_RAND_GAUSS,
+    LIQUID_ANALOG_AM_PPM,
+    LIQUID_ANALOG_AM_PWM,
     LIQUID_ANALOG_FM_CONSTANT,
     LIQUID_ANALOG_FM_SQUARE,
     LIQUID_ANALOG_FM_TRIANGLE,
@@ -112,6 +117,8 @@ typedef enum {
     LIQUID_ANALOG_FM_WAV_FILE,
     LIQUID_ANALOG_FM_RAND_UNI,
     LIQUID_ANALOG_FM_RAND_GAUSS,
+    LIQUID_ANALOG_FM_CHIRP,
+    LIQUID_ANALOG_FM_CHIRP_NONLIN,
 } analog_scheme;
 
 // structure for holding full modulation type descriptor
@@ -122,36 +129,15 @@ struct analog_type_s {
     unsigned int bps;           // modulation depth (e.g. 1)
 };
 
-const struct analog_type_s analog_types[17] = {
-    // name      fullname                         scheme          bps
+#define ANALOG_TYPE_COUNT 21
 
-    // unknown
-    {"unknown",         "unknown_analog",         LIQUID_ANALOG_UNKNOWN,        0},
-
-    // ANALOG
-    {"am_constant",     "analog_am_constant",     LIQUID_ANALOG_AM_CONSTANT,    1},
-    {"am_square",       "analog_am_square",       LIQUID_ANALOG_AM_SQUARE,      1},
-    {"am_triangle",     "analog_am_triangle",     LIQUID_ANALOG_AM_TRIANGLE,    1},
-    {"am_sawtooth",     "analog_am_sawtooth",     LIQUID_ANALOG_AM_SAWTOOTH,    1},
-    {"am_sinusoid",     "analog_am_sinusoid",     LIQUID_ANALOG_AM_SINUSOID,    1},
-    {"am_wav_file",     "analog_am_wav_file",     LIQUID_ANALOG_AM_WAV_FILE,    1},
-    {"am_rand_uni",     "analog_am_rand_uni",     LIQUID_ANALOG_AM_RAND_UNI,    1},
-    {"am_rand_gauss",   "analog_am_rand_gauss",   LIQUID_ANALOG_AM_RAND_GAUSS,  1},
-    {"fm_constant",     "analog_fm_constant",     LIQUID_ANALOG_FM_CONSTANT,    1},
-    {"fm_square",       "analog_fm_square",       LIQUID_ANALOG_FM_SQUARE,      1},
-    {"fm_triangle",     "analog_fm_triangle",     LIQUID_ANALOG_FM_TRIANGLE,    1},
-    {"fm_sawtooth",     "analog_fm_sawtooth",     LIQUID_ANALOG_FM_SAWTOOTH,    1},
-    {"fm_sinusoid",     "analog_fm_sinusoid",     LIQUID_ANALOG_FM_SINUSOID,    1},
-    {"fm_wav_file",     "analog_fm_wav_file",     LIQUID_ANALOG_FM_WAV_FILE,    1},
-    {"fm_rand_uni",     "analog_fm_rand_uni",     LIQUID_ANALOG_FM_RAND_UNI,    1},
-    {"fm_rand_gauss",   "analog_fm_rand_gauss",   LIQUID_ANALOG_FM_RAND_GAUSS,  1},
-};
+extern const struct analog_type_s analog_types[];
 
 inline analog_scheme liquid_getopt_str2analog(const char * _str)
 {
     // compare each string to short name
     unsigned int i;
-    for (i=0; i<17; i++) {
+    for (i=0; i<ANALOG_TYPE_COUNT; i++) {
         if (strcmp(_str,analog_types[i].name)==0)
             return (analog_scheme)i;
     }
@@ -194,14 +180,14 @@ inline int liquid_print_analog_modulation_schemes()
 
     // print all available modem schemes
     printf("          ");
-    for (i=1; i<17; i++) {
+    for (i=1; i<ANALOG_TYPE_COUNT; i++) {
         printf("%s", analog_types[i].name);
 
-        if (i != 17-1)
+        if (i != ANALOG_TYPE_COUNT-1)
             printf(", ");
 
         len += strlen(analog_types[i].name);
-        if (len > 48 && i != 17-1) {
+        if (len > 48 && i != ANALOG_TYPE_COUNT-1) {
             len = 10;
             printf("\n          ");
         }

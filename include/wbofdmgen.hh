@@ -6,13 +6,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __cplusplus
 #include <complex>
+#else
+#include <complex.h>
+#endif
 #include <fftw3.h>
 #include "liquid.h"
 
 #include <omp.h>
 #define OMP_THREADS (16)
 
+#ifdef __cplusplus
 // inhereted classes
 class wbofdmgen
 {
@@ -44,6 +49,14 @@ class wbofdmgen
     fftwf_plan            fft[OMP_THREADS];         //
     modemcf               modem[OMP_THREADS];
 };
+#else
+
+typedef struct wbofdmgen_s{
+
+} wbofdmgen;
+
+#endif
+
 
 #endif /* __WBOFDMGEN_HH__ */
 

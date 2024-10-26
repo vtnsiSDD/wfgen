@@ -278,7 +278,7 @@ class Ettus_USRP_container(object):
                 if 'serial' in radio_dict["Device Address"]:
                     if len(args):
                         args += ','
-                    args+="serial={0:s}".format(radio_dict["Device Address"]["serial"])
+                    args+="serial={0:s}".format(str(radio_dict["Device Address"]["serial"])) ### could be a number
                 if 'mgmt_addr' in radio_dict["Device Address"]:
                     if len(args):
                         args += ','

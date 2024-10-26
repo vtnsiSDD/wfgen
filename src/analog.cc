@@ -1,7 +1,8 @@
 
 #include "analog.hh"
-#include <iostream>
+#ifdef __cplusplus
 #include <cstdlib>
+#include <iostream>
 
 
 //***************************************** WAV FILE HANDLING
@@ -35,8 +36,17 @@ void print_vec(uint32_t n, double* vec, std::string name){
         std::cout << "]\n";
     }
 }
+#else
+#include <stdlib.h>
+#include <math.h>
+#define min(a,b) \
+    ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+       _a > _b ? _a : _b;})
+typedef unsigned int uint;
+#endif
 
-a_src_t str2analog_source_type(char* type){
+a_src_t str2analog_source_type_(char* type){
     uint8_t str_len = strlen(type);
     a_src_t atype = INVALID_ANALOG;
     if(str_len < 2) return atype;
@@ -78,7 +88,7 @@ a_src_t str2analog_source_type(char* type){
     return atype;
 }
 
-d_src_t str2digital_source_type(char* type){
+d_src_t str2digital_source_type_(char* type){
     uint8_t str_len = strlen(type);
     d_src_t dtype = INVALID_DIGITAL;
     if(str_len < 3) return dtype;
@@ -128,7 +138,7 @@ d_src_t str2digital_source_type(char* type){
 
 }
 
-m_src_t str2message_source_type(char* type){
+m_src_t str2message_source_type_(char* type){
     uint8_t str_len = strlen(type);
     m_src_t ctype = INVALID_MESSAGE;
     if(str_len < 8) return ctype;
@@ -174,7 +184,7 @@ m_src_t str2message_source_type(char* type){
     }
     return ctype;
 }
-
+#ifdef __cplusplus
 std::string analog_source_type2str(a_src_t type){
     if(type == CONSTANT){
         return "constant";
@@ -223,7 +233,7 @@ std::string message_source_type2str(m_src_t type){
     }
     return "invalid";
 }
-
+#endif
 double bound(double v){
     return v-floor(v);
 }
@@ -267,9 +277,9 @@ double make_triangle(double offset){
     //desired (0, 2, 2, -4)
     float intercept = 2*(a_s==1) - 4*(a_s==-1)*(a<0.75);
 
-    return double(slope*bound(offset)+intercept);
+    return (double)(slope*bound(offset)+intercept);
 }
-
+#ifdef __cplusplus
 void real_source_print(real_source src, uint8_t indent){
     char* indent_buf = (char*)malloc(indent);
     memset(indent_buf,' ',indent);
@@ -327,12 +337,15 @@ void real_path_print(real_path path, uint8_t indent){
     std::cout << ind << "modulator  : " << (uint64_t)path->modulator << std::endl;
     std::cout << ind << "resampler  : " << (uint64_t)path->resampler << std::endl;
 }
-
+#endif
 //------------------------------------------------
-
+#ifdef __cplusplus
 constant_source constant_source_create(){
-    constant_source src = (constant_source)malloc(sizeof(constant_source_s));
-    memset(src, 0, sizeof(constant_source_s));
+#else
+constant_source constant_source_create_default(){
+#endif
+    constant_source src = (constant_source)malloc(sizeof(struct constant_source_s));
+    memset(src, 0, sizeof(struct constant_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -342,8 +355,8 @@ constant_source constant_source_create(){
     return src;
 }
 constant_source constant_source_create(float amp, uint32_t buffer_len){
-    constant_source src = (constant_source)malloc(sizeof(constant_source_s));
-    memset(src, 0, sizeof(constant_source_s));
+    constant_source src = (constant_source)malloc(sizeof(struct constant_source_s));
+    memset(src, 0, sizeof(struct constant_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -377,7 +390,11 @@ void constant_source_reset(constant_source src){
 int constant_source_release(constant_source src, uint32_t len, uint32_t *actual_len){
     if(src == NULL) return 1;
     uint32_t available = cbufferf_size(src->buffer);
+    #ifdef __cplusplus
     len = std::min(len,available);
+    #else
+    len = min(len,available);
+    #endif
     if(actual_len != NULL){
         *actual_len = len;
     }
@@ -431,16 +448,26 @@ int constant_source_get_stream(constant_source src, float *buf, uint32_t len){
     }
     return 0;
 }
+#ifdef __cplusplus
 int constant_source_get_stream_ptr(constant_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int constant_source_get_stream_ptr(constant_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 square_source square_source_create(){
-    square_source src = (square_source)malloc(sizeof(square_source_s));
-    memset(src, 0, sizeof(square_source_s));
+#else
+square_source square_source_create_default(){
+#endif
+    square_source src = (square_source)malloc(sizeof(struct square_source_s));
+    memset(src, 0, sizeof(struct square_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -453,8 +480,8 @@ square_source square_source_create(){
     return src;
 }
 square_source square_source_create(float amp, double freq, double period_offset, uint32_t buffer_len){
-    square_source src = (square_source)malloc(sizeof(square_source_s));
-    memset(src, 0, sizeof(square_source_s));
+    square_source src = (square_source)malloc(sizeof(struct square_source_s));
+    memset(src, 0, sizeof(struct square_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -498,7 +525,11 @@ void square_source_center(square_source src){
 int square_source_release(square_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
     uint32_t available = cbufferf_size(src->buffer);
+    #ifdef __cplusplus
     len = std::min(len,available);
+    #else
+    len = min(len,available);
+    #endif
     if(actual_len != NULL){
         *actual_len = len;
     }
@@ -567,16 +598,26 @@ int square_source_get_stream(square_source src, float *buf, uint32_t len){
     }
     return 0;
 }
+#ifdef __cplusplus
 int square_source_get_stream_ptr(square_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int square_source_get_stream_ptr(square_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 sawtooth_source sawtooth_source_create(){
-    sawtooth_source src = (sawtooth_source)malloc(sizeof(sawtooth_source_s));
-    memset(src, 0, sizeof(sawtooth_source_s));
+#else
+sawtooth_source sawtooth_source_create_default(){
+#endif
+    sawtooth_source src = (sawtooth_source)malloc(sizeof(struct sawtooth_source_s));
+    memset(src, 0, sizeof(struct sawtooth_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -589,8 +630,8 @@ sawtooth_source sawtooth_source_create(){
     return src;
 }
 sawtooth_source sawtooth_source_create(float amp, double freq, double period_offset, uint32_t buffer_len){
-    sawtooth_source src = (sawtooth_source)malloc(sizeof(sawtooth_source_s));
-    memset(src, 0, sizeof(sawtooth_source_s));
+    sawtooth_source src = (sawtooth_source)malloc(sizeof(struct sawtooth_source_s));
+    memset(src, 0, sizeof(struct sawtooth_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -634,7 +675,11 @@ void sawtooth_source_center(sawtooth_source src){
 int sawtooth_source_release(sawtooth_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
     uint32_t available = cbufferf_size(src->buffer);
+    #ifdef __cplusplus
     len = std::min(len,available);
+    #else
+    len = min(len,available);
+    #endif
     if(actual_len != NULL){
         *actual_len = len;
     }
@@ -701,16 +746,26 @@ int sawtooth_source_get_stream(sawtooth_source src, float *buf, uint32_t len){
     }
     return 0;
 }
+#ifdef __cplusplus
 int sawtooth_source_get_stream_ptr(sawtooth_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int sawtooth_source_get_stream_ptr(sawtooth_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 triangle_source triangle_source_create(){
-    triangle_source src = (triangle_source)malloc(sizeof(triangle_source_s));
-    memset(src, 0, sizeof(triangle_source_s));
+#else
+triangle_source triangle_source_create_default(){
+#endif
+    triangle_source src = (triangle_source)malloc(sizeof(struct triangle_source_s));
+    memset(src, 0, sizeof(struct triangle_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -723,8 +778,8 @@ triangle_source triangle_source_create(){
     return src;
 }
 triangle_source triangle_source_create(float amp, double freq, double period_offset, uint32_t buffer_len){
-    triangle_source src = (triangle_source)malloc(sizeof(triangle_source_s));
-    memset(src, 0, sizeof(triangle_source_s));
+    triangle_source src = (triangle_source)malloc(sizeof(struct triangle_source_s));
+    memset(src, 0, sizeof(struct triangle_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -768,7 +823,11 @@ void triangle_source_center(triangle_source src){
 int triangle_source_release(triangle_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
     uint32_t available = cbufferf_size(src->buffer);
+    #ifdef __cplusplus
     len = std::min(len,available);
+    #else
+    len = min(len,available);
+    #endif
     if(actual_len != NULL){
         *actual_len = len;
     }
@@ -835,16 +894,26 @@ int triangle_source_get_stream(triangle_source src, float *buf, uint32_t len){
     }
     return 0;
 }
+#ifdef __cplusplus
 int triangle_source_get_stream_ptr(triangle_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int triangle_source_get_stream_ptr(triangle_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 sinusoid_source sinusoid_source_create(){
-    sinusoid_source src = (sinusoid_source)malloc(sizeof(sinusoid_source_s));
-    memset(src, 0, sizeof(sinusoid_source_s));
+#else
+sinusoid_source sinusoid_source_create_default(){
+#endif
+    sinusoid_source src = (sinusoid_source)malloc(sizeof(struct sinusoid_source_s));
+    memset(src, 0, sizeof(struct sinusoid_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -858,8 +927,8 @@ sinusoid_source sinusoid_source_create(){
     return src;
 }
 sinusoid_source sinusoid_source_create(float amp, double freq, double phi, uint32_t buffer_len){
-    sinusoid_source src = (sinusoid_source)malloc(sizeof(sinusoid_source_s));
-    memset(src, 0, sizeof(sinusoid_source_s));
+    sinusoid_source src = (sinusoid_source)malloc(sizeof(struct sinusoid_source_s));
+    memset(src, 0, sizeof(struct sinusoid_source_s));
     if(src == NULL) return src;
     src->_adm = ANALOG;
     src->_sd = STATIC;
@@ -906,7 +975,11 @@ void sinusoid_source_center(sinusoid_source src){
 int sinusoid_source_release(sinusoid_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
     uint32_t available = cbufferf_size(src->buffer);
+    #ifdef __cplusplus
     len = std::min(len,available);
+    #else
+    len = min(len,available);
+    #endif
     if(actual_len != NULL){
         *actual_len = len;
     }
@@ -973,41 +1046,59 @@ int sinusoid_source_get_stream(sinusoid_source src, float *buf, uint32_t len){
     }
     return 0;
 }
+#ifdef __cplusplus
 int sinusoid_source_get_stream_ptr(sinusoid_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int sinusoid_source_get_stream_ptr(sinusoid_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 rand_gauss_source rand_gauss_source_create(){
-    rand_gauss_source src = (rand_gauss_source)malloc(sizeof(rand_gauss_source_s));
-    memset(src, 0, sizeof(rand_gauss_source_s));
+#else
+rand_gauss_source rand_gauss_source_create_default(){
+#endif
+    rand_gauss_source src = (rand_gauss_source)malloc(sizeof(struct rand_gauss_source_s));
+    memset(src, 0, sizeof(struct rand_gauss_source_s));
     if(src == NULL) return src;
     src->_adm = MESSAGE;
     src->_sd = STATIC;
     src->_src = RANDOM_GAUSS;
     src->_mean = 0.;
     src->_stdd = 0.7071067811865476;
+    #ifdef __cplusplus
     std::random_device rd;
     src->_rgen = new std::mt19937_64(rd());
     src->_dist = new std::normal_distribution<float>(src->_mean, src->_stdd);
+    // #else
+    #endif
     // src->_gen = make_guass_gen(src->_rgen,src->_dist);
     src->buffer = cbufferf_create(1024);
     return src;
 }
 rand_gauss_source rand_gauss_source_create(float mean, float stdd, uint32_t buffer_len){
-    rand_gauss_source src = (rand_gauss_source) malloc(sizeof(rand_gauss_source_s));
-    memset(src, 0, sizeof(rand_gauss_source_s));
+    rand_gauss_source src = (rand_gauss_source) malloc(sizeof(struct rand_gauss_source_s));
+    memset(src, 0, sizeof(struct rand_gauss_source_s));
     if(src == NULL) return src;
     src->_adm = MESSAGE;
     src->_sd = STATIC;
     src->_src = RANDOM_GAUSS;
     src->_mean = mean;
     src->_stdd = stdd;
+    #ifdef __cplusplus
     std::random_device rd;
     src->_rgen = new std::mt19937_64(rd());
     src->_dist = new std::normal_distribution<float>(src->_mean, src->_stdd);
+    #else
+    src->_rgen = NULL;
+    src->_dist = NULL;
+    #endif
     // src->_gen = make_guass_gen(src->_rgen,src->_dist);
     if(buffer_len == 0){
         src->buffer = cbufferf_create_max(0,1);
@@ -1020,8 +1111,13 @@ rand_gauss_source rand_gauss_source_create(float mean, float stdd, uint32_t buff
 void rand_gauss_source_destroy(rand_gauss_source *src){
     if(src == NULL) return;
     if(*src == NULL) { src = NULL; return; }
+    #ifdef __cplusplus
     if((*src)->_rgen != NULL){ delete (*src)->_rgen; (*src)->_rgen = NULL; }
     if((*src)->_dist != NULL){ delete (*src)->_dist; (*src)->_dist = NULL; }
+    #else
+    if((*src)->_rgen != NULL){ free((*src)->_rgen); (*src)->_rgen = NULL; }
+    if((*src)->_dist != NULL){ free((*src)->_dist); (*src)->_dist = NULL; }
+    #endif
     if((*src)->buffer != NULL) cbufferf_destroy((*src)->buffer);
     free((*src));
     *src = NULL;
@@ -1032,7 +1128,11 @@ void rand_gauss_source_fill_buffer(rand_gauss_source src){
     for(uint idx = 0; idx < to_gen; idx++){
         // cbufferf_push(src->buffer,src->_gen());
         // cbufferf_push(src->buffer,0.0f);
+        #ifdef __cplusplus
         cbufferf_push(src->buffer,(*src->_dist)(*src->_rgen));
+        #else
+        cbufferf_push(src->buffer,0);
+        #endif
     }
 }
 void rand_gauss_source_reset(rand_gauss_source src){
@@ -1041,7 +1141,11 @@ void rand_gauss_source_reset(rand_gauss_source src){
 }
 int rand_gauss_source_release(rand_gauss_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
+    #ifdef __cplusplus
     len = std::min(len,cbufferf_size(src->buffer));
+    #else
+    len = min(len,cbufferf_size(src->buffer));
+    #endif
     if(actual_len != NULL) *actual_len = len;
     return cbufferf_release(src->buffer, len);
 }
@@ -1057,7 +1161,11 @@ int rand_gauss_source_nstep(rand_gauss_source src, uint32_t n, float *out){
     uint32_t loaded = 0, loading = 0;
     float *ptr;
     while(loaded < n){
+        #ifdef __cplusplus
         cbufferf_read(src->buffer, std::min(n,n-loaded), &ptr, &loading);
+        #else
+        cbufferf_read(src->buffer, min(n,n-loaded), &ptr, &loading);
+        #endif
         memcpy(&out[loaded], ptr, loading*sizeof(float));
         cbufferf_release(src->buffer, loading);
         rand_gauss_source_fill_buffer(src);
@@ -1068,10 +1176,14 @@ int rand_gauss_source_nstep(rand_gauss_source src, uint32_t n, float *out){
 int rand_gauss_source_set(rand_gauss_source src, double *mean, double *stdd){
     if(src == NULL) return 1;
     if((mean == NULL) && (stdd == NULL)) return 0;
-    delete src->_dist;
     if(mean != NULL) src->_mean = *mean;
     if(stdd != NULL) src->_stdd = *stdd;
+    #ifdef __cpluscplus
+    delete src->_dist;
     src->_dist = new std::normal_distribution<float>(src->_mean, src->_stdd);
+    #else
+    src->_dist = NULL;
+    #endif
     // src->_gen = make_guass_gen(src->_rgen,src->_dist);
     return 0;
 }
@@ -1085,41 +1197,61 @@ int rand_gauss_source_get_stream(rand_gauss_source src, float *buf, uint32_t len
     if(src == NULL) return 1;
     return rand_gauss_source_nstep(src, len, buf);
 }
+#ifdef __cplusplus
 int rand_gauss_source_get_stream_ptr(rand_gauss_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int rand_gauss_source_get_stream_ptr(rand_gauss_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 rand_uni_source rand_uni_source_create(){
-    rand_uni_source src = (rand_uni_source)malloc(sizeof(rand_uni_source_s));
-    memset(src, 0, sizeof(rand_uni_source_s));
+#else
+rand_uni_source rand_uni_source_create_default(){
+#endif
+    rand_uni_source src = (rand_uni_source)malloc(sizeof(struct rand_uni_source_s));
+    memset(src, 0, sizeof(struct rand_uni_source_s));
     if(src == NULL) return src;
     src->_adm = MESSAGE;
     src->_sd = STATIC;
     src->_src = RANDOM_UNI;
     src->_mini = -1.;
     src->_maxi = 1.;
+    #ifdef __cplusplus
     std::random_device rd;
     src->_rgen = new std::mt19937_64(rd());
     src->_dist = new std::uniform_real_distribution<float>(-1,1);
+    #else
+    src->_rgen = NULL;
+    src->_dist = NULL;
+    #endif
     // src->_gen = make_uni_gen(src->_rgen,src->_dist);
     src->buffer = cbufferf_create(1024);
     return src;
 }
 rand_uni_source rand_uni_source_create(float mini, float maxi, uint32_t buffer_len){
-    rand_uni_source src = (rand_uni_source) malloc(sizeof(rand_uni_source_s));
-    memset(src, 0, sizeof(rand_uni_source_s));
+    rand_uni_source src = (rand_uni_source) malloc(sizeof(struct rand_uni_source_s));
+    memset(src, 0, sizeof(struct rand_uni_source_s));
     if(src == NULL) return src;
     src->_adm = MESSAGE;
     src->_sd = STATIC;
     src->_src = RANDOM_UNI;
     src->_mini = mini;
     src->_maxi = maxi;
+    #ifdef __cplusplus
     std::random_device rd;
     src->_rgen = new std::mt19937_64(rd());
     src->_dist = new std::uniform_real_distribution<float>(src->_mini, src->_maxi);
+    #else
+    src->_rgen = NULL;
+    src->_dist = NULL;
+    #endif
     // src->_gen = make_uni_gen(src->_rgen,src->_dist);
     if(buffer_len == 0){
         src->buffer = cbufferf_create_max(0,1);
@@ -1132,8 +1264,13 @@ rand_uni_source rand_uni_source_create(float mini, float maxi, uint32_t buffer_l
 void rand_uni_source_destroy(rand_uni_source *src){
     if(src == NULL) return;
     if(*src == NULL) { src = NULL; return; }
+    #ifdef __cplusplus
     if((*src)->_rgen != NULL){ delete (*src)->_rgen; (*src)->_rgen = NULL; }
     if((*src)->_dist != NULL){ delete (*src)->_dist; (*src)->_dist = NULL; }
+    #else
+    if((*src)->_rgen != NULL){ free((*src)->_rgen); (*src)->_rgen = NULL; }
+    if((*src)->_dist != NULL){ free((*src)->_dist); (*src)->_dist = NULL; }
+    #endif
     if((*src)->buffer != NULL) cbufferf_destroy((*src)->buffer);
     free((*src));
     *src = NULL;
@@ -1146,7 +1283,11 @@ void rand_uni_source_fill_buffer(rand_uni_source src){
     for(uint idx = 0; idx < to_gen; idx++){
         // cbufferf_push(src->buffer,src->_gen());
         // cbufferf_push(src->buffer,0.0f);
+        #ifdef __cplusplus
         cbufferf_push(src->buffer,(*src->_dist)(*src->_rgen));
+        #else
+        cbufferf_push(src->buffer,0);
+        #endif
     }
 }
 void rand_uni_source_reset(rand_uni_source src){
@@ -1155,7 +1296,11 @@ void rand_uni_source_reset(rand_uni_source src){
 }
 int rand_uni_source_release(rand_uni_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
+    #ifdef __cplusplus
     len = std::min(len,cbufferf_size(src->buffer));
+    #else
+    len = min(len,cbufferf_size(src->buffer));
+    #endif
     if(actual_len != NULL) *actual_len = len;
     return cbufferf_release(src->buffer, len);
 }
@@ -1171,7 +1316,11 @@ int rand_uni_source_nstep(rand_uni_source src, uint32_t n, float *out){
     uint32_t loaded = 0, loading = 0;
     float *ptr;
     while(loaded < n){
+        #ifdef __cplusplus
         cbufferf_read(src->buffer, std::min(n,n-loaded), &ptr, &loading);
+        #else
+        cbufferf_read(src->buffer, min(n,n-loaded), &ptr, &loading);
+        #endif
         memcpy(&out[loaded], ptr, loading*sizeof(float));
         cbufferf_release(src->buffer, loading);
         rand_uni_source_fill_buffer(src);
@@ -1182,10 +1331,14 @@ int rand_uni_source_nstep(rand_uni_source src, uint32_t n, float *out){
 int rand_uni_source_set(rand_uni_source src, double *mini, double *maxi){
     if(src == NULL) return 1;
     if((mini == NULL) && (maxi == NULL)) return 0;
-    delete src->_dist;
     if(mini != NULL) src->_mini = *mini;
     if(maxi != NULL) src->_maxi = *maxi;
+    #ifdef __cplusplus
+    delete src->_dist;
     src->_dist = new std::uniform_real_distribution<float>(src->_mini, src->_maxi);
+    #else
+    src->_dist = NULL;
+    #endif
     // src->_gen = make_uni_gen(src->_rgen,src->_dist);
     return 0;
 }
@@ -1199,22 +1352,36 @@ int rand_uni_source_get_stream(rand_uni_source src, float *buf, uint32_t len){
     if(src == NULL) return 1;
     return rand_uni_source_nstep(src, len, buf);
 }
+#ifdef __cplusplus
 int rand_uni_source_get_stream_ptr(rand_uni_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int rand_uni_source_get_stream_ptr(rand_uni_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 wav_source wav_source_create(){
-    wav_source src = (wav_source)malloc(sizeof(wav_source_s));
-    memset(src, 0, sizeof(wav_source_s));
+#else
+wav_source wav_source_create_default(){
+#endif
+    wav_source src = (wav_source)malloc(sizeof(struct wav_source_s));
+    memset(src, 0, sizeof(struct wav_source_s));
     if(src == NULL) return src;
     src->_adm = MESSAGE;
     src->_sd = STATIC;
     src->_src = WAV_FILE;
     src->_special = MONO;
+    #ifdef __cplusplus
     src->wav_r = wav_reader_create();//WAV READER SHOULD HAVE SPECIAL MODE == ALL ||| so two floats per sample
+    #else
+    src->wav_r = wav_reader_create_default();//WAV READER SHOULD HAVE SPECIAL MODE == ALL ||| so two floats per sample
+    #endif
     // src->_gen = make_mono(src->wav_r);
     src->buffer = cbufferf_create(1024);
     return src;
@@ -1231,12 +1398,16 @@ float wav_source_get_sample(wav_source src){
     else return (value[0]+value[1])/2.0;
 }
 size_t wav_source_get_nsample(wav_source src){
-    float *reader_ptr;
+    float *reader_ptr = NULL;
     size_t avail = wav_reader_data_ptr(src->wav_r, reader_ptr);// number of available samples
     // reader_ptr now points to valid audio samples (L,R)->(float,float)
     ///// goal is to load n samples into the wav_source->buffer
 
+    #ifdef __cplusplus
     avail = std::min(avail, (size_t)cbufferf_space_available(src->buffer));// only digest the smaller number of samples
+    #else
+    avail = min(avail, (size_t)cbufferf_space_available(src->buffer));
+    #endif
 
     float value; // just assuming only 1 float now
     for(size_t idx = 0; idx < avail; idx++){
@@ -1250,8 +1421,8 @@ size_t wav_source_get_nsample(wav_source src){
     return avail;
 }
 wav_source wav_source_create(wav_mode_t mode, wav_reader reader, uint32_t buffer_len){
-    wav_source src = (wav_source) malloc(sizeof(wav_source_s));
-    memset(src, 0, sizeof(wav_source_s));
+    wav_source src = (wav_source) malloc(sizeof(struct wav_source_s));
+    memset(src, 0, sizeof(struct wav_source_s));
     if(src == NULL) return src;
     src->_adm = MESSAGE;
     src->_sd = STATIC;
@@ -1294,7 +1465,11 @@ void wav_source_reset(wav_source src){
 }
 int p(wav_source src, uint32_t len, uint32_t* actual_len){
     if(src == NULL) return 1;
+    #ifdef __cplusplus
     len = std::min(len,cbufferf_size(src->buffer));
+    #else
+    len = min(len,cbufferf_size(src->buffer));
+    #endif
     if(actual_len != NULL) *actual_len = len;
     return cbufferf_release(src->buffer, len);
 }
@@ -1337,16 +1512,26 @@ int wav_source_get_stream(wav_source src, float *buf, uint32_t len){
     if(src == NULL) return 1;
     return wav_source_nstep(src, len, buf);
 }
+#ifdef __cplusplus
 int wav_source_get_stream_ptr(wav_source src, float *ptr, uint32_t len, uint32_t &actual_len){
     if(src == NULL) return 1;
     return cbufferf_read(src->buffer, len, &ptr, &actual_len);
 }
+#else
+int wav_source_get_stream_ptr(wav_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+    if(src == NULL) return 1;
+    return cbufferf_read(src->buffer, len, &ptr, actual_len);
+}
+#endif
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 bytes_source bytes_source_create(){
-    bytes_source src = (bytes_source) malloc(sizeof(bytes_source_s));
-    memset(src, 0, sizeof(bytes_source_s));
+#else
+bytes_source bytes_source_create_default(){
+#endif
+    bytes_source src = (bytes_source) malloc(sizeof(struct bytes_source_s));
+    memset(src, 0, sizeof(struct bytes_source_s));
     if(src == NULL) return NULL;
     src->_adm = DIGITAL;
     src->_sd = STATIC;
@@ -1412,15 +1597,22 @@ int bytes_source_get_stream(bytes_source src, float *buf, uint32_t len){
     if(src->source == NULL) return -2;
     return -3;
 }
+#ifdef __cplusplus
 int bytes_source_get_stream_ptr(bytes_source src, float *ptr, uint32_t len, uint32_t &actual_len){
+#else
+int bytes_source_get_stream_ptr(bytes_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+#endif
     if(src == NULL) return -1;
     if(src->source == NULL) return -2;
     return -3;
 }
-
+#ifdef __cplusplus
 mask_source mask_source_create(){
-    mask_source src = (mask_source) malloc(sizeof(mask_source_s));
-    memset(src, 0, sizeof(mask_source_s));
+#else
+mask_source mask_source_create_default(){
+#endif
+    mask_source src = (mask_source) malloc(sizeof(struct mask_source_s));
+    memset(src, 0, sizeof(struct mask_source_s));
     if(src == NULL) return NULL;
     src->_adm = DIGITAL;
     src->_sd = STATIC;
@@ -1486,15 +1678,22 @@ int mask_source_get_stream(mask_source src, float *buf, uint32_t len){
     if(src->source == NULL) return -2;
     return -3;
 }
+#ifdef __cplusplus
 int mask_source_get_stream_ptr(mask_source src, float *ptr, uint32_t len, uint32_t &actual_len){
+#else
+int mask_source_get_stream_ptr(mask_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+#endif
     if(src == NULL) return -1;
     if(src->source == NULL) return -2;
     return -3;
 }
-
+#ifdef __cplusplus
 manchester_source manchester_source_create(){
-    manchester_source src = (manchester_source) malloc(sizeof(manchester_source_s));
-    memset(src, 0, sizeof(manchester_source_s));
+#else
+manchester_source manchester_source_create_default(){
+#endif
+    manchester_source src = (manchester_source) malloc(sizeof(struct manchester_source_s));
+    memset(src, 0, sizeof(struct manchester_source_s));
     if(src == NULL) return NULL;
     src->_adm = DIGITAL;
     src->_sd = STATIC;
@@ -1560,15 +1759,22 @@ int manchester_source_get_stream(manchester_source src, float *buf, uint32_t len
     if(src->source == NULL) return -2;
     return -3;
 }
+#ifdef __cplusplus
 int manchester_source_get_stream_ptr(manchester_source src, float *ptr, uint32_t len, uint32_t &actual_len){
+#else
+int manchester_source_get_stream_ptr(manchester_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+#endif
     if(src == NULL) return -1;
     if(src->source == NULL) return -2;
     return -3;
 }
-
+#ifdef __cplusplus
 ppm_source ppm_source_create(){
-    ppm_source src = (ppm_source) malloc(sizeof(ppm_source_s));
-    memset(src, 0, sizeof(ppm_source_s));
+#else
+ppm_source ppm_source_create_default(){
+#endif
+    ppm_source src = (ppm_source) malloc(sizeof(struct ppm_source_s));
+    memset(src, 0, sizeof(struct ppm_source_s));
     if(src == NULL) return NULL;
     src->_adm = DIGITAL;
     src->_sd = STATIC;
@@ -1634,15 +1840,22 @@ int ppm_source_get_stream(ppm_source src, float *buf, uint32_t len){
     if(src->source == NULL) return -2;
     return -3;
 }
+#ifdef __cplusplus
 int ppm_source_get_stream_ptr(ppm_source src, float *ptr, uint32_t len, uint32_t &actual_len){
+#else
+int ppm_source_get_stream_ptr(ppm_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+#endif
     if(src == NULL) return -1;
     if(src->source == NULL) return -2;
     return -3;
 }
-
+#ifdef __cplusplus
 pdm_source pdm_source_create(){
-    pdm_source src = (pdm_source) malloc(sizeof(pdm_source_s));
-    memset(src, 0, sizeof(pdm_source_s));
+#else
+pdm_source pdm_source_create_default(){
+#endif
+    pdm_source src = (pdm_source) malloc(sizeof(struct pdm_source_s));
+    memset(src, 0, sizeof(struct pdm_source_s));
     if(src == NULL) return NULL;
     src->_adm = DIGITAL;
     src->_sd = STATIC;
@@ -1708,17 +1921,24 @@ int pdm_source_get_stream(pdm_source src, float *buf, uint32_t len){
     if(src->source == NULL) return -2;
     return -3;
 }
+#ifdef __cplusplus
 int pdm_source_get_stream_ptr(pdm_source src, float *ptr, uint32_t len, uint32_t &actual_len){
+#else
+int pdm_source_get_stream_ptr(pdm_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+#endif
     if(src == NULL) return -1;
     if(src->source == NULL) return -2;
     return -3;
 }
 
 //------------------------------------------------
-
+#ifdef __cplusplus
 real_source real_source_create(){
-    real_source src = (real_source)malloc(sizeof(real_source_s));
-    memset(src, 0, sizeof(real_source_s));
+#else
+real_source real_source_create_default(){
+#endif
+    real_source src = (real_source)malloc(sizeof(struct real_source_s));
+    memset(src, 0, sizeof(struct real_source_s));
     if (src == NULL) return src;
     src->adm_type = ANALOG;
     src->sd_type = STATIC;
@@ -1726,13 +1946,17 @@ real_source real_source_create(){
     src->itemsize = sizeof(float);
     src->channels = 1;
     src->special = NONE;
+    #ifdef __cplusplus
     src->source = (void*)sinusoid_source_create();
+    #else
+    src->source = (void*)sinusoid_source_create_default();
+    #endif
     return src;
 }
 real_source real_source_create(real_path_t mode, real_param_t vari, uint8_t src_type,
                                 uint8_t itemsize, uint8_t channels, wav_mode_t special){
-    real_source src = (real_source)malloc(sizeof(real_source_s));
-    memset(src, 0, sizeof(real_source_s));
+    real_source src = (real_source)malloc(sizeof(struct real_source_s));
+    memset(src, 0, sizeof(struct real_source_s));
     if (src == NULL) return src;
     src->adm_type = mode;
     src->sd_type = vari;
@@ -1742,44 +1966,100 @@ real_source real_source_create(real_path_t mode, real_param_t vari, uint8_t src_
     src->special = special;
     if(mode == ANALOG){
         if(src_type == CONSTANT)
+            #ifdef __cplusplus
             src->source = (void*) constant_source_create();
+            #else
+            src->source = (void*) constant_source_create_default();
+            #endif
         else if(src_type == SQUARE)
+            #ifdef __cplusplus
             src->source = (void*) square_source_create();
+            #else
+            src->source = (void*) square_source_create_default();
+            #endif
         else if(src_type == SAWTOOTH)
+            #ifdef __cplusplus
             src->source = (void*) sawtooth_source_create();
+            #else
+            src->source = (void*) sawtooth_source_create_default();
+            #endif
         else if(src_type == TRIANGLE)
+            #ifdef __cplusplus
             src->source = (void*) triangle_source_create();
+            #else
+            src->source = (void*) triangle_source_create_default();
+            #endif
         else if(src_type == SINUSOID)
+            #ifdef __cplusplus
             src->source = (void*) sinusoid_source_create();
+            #else
+            src->source = (void*) sinusoid_source_create_default();
+            #endif
     }
     else if(src->adm_type == MESSAGE){
         if(src_type == RANDOM_GAUSS){
+            #ifdef __cplusplus
             src->source = (void*) rand_gauss_source_create();
+            #else
+            src->source = (void*) rand_gauss_source_create_default();
+            #endif
         }
         else if(src_type == RANDOM_UNI){
+            #ifdef __cplusplus
             src->source = (void*) rand_uni_source_create();
+            #else
+            src->source = (void*) rand_uni_source_create_default();
+            #endif
         }
         else if(src_type == WAV_FILE){
+            #ifdef __cplusplus
             src->source = (void*) wav_source_create();
+            #else
+            src->source = (void*) wav_source_create_default();
+            #endif
         }
     }
     else{
         if(src_type == BYTES)
+            #ifdef __cplusplus
             src->source = (void*) bytes_source_create();
+            #else
+            src->source = (void*) bytes_source_create_default();
+            #endif
         else if(src_type == MASK)
+            #ifdef __cplusplus
             src->source = (void*) mask_source_create();
+            #else
+            src->source = (void*) mask_source_create_default();
+            #endif
         else if(src_type == MANCHESTER)
+            #ifdef __cplusplus
             src->source = (void*) manchester_source_create();
+            #else
+            src->source = (void*) manchester_source_create_default();
+            #endif
         else if(src_type == PPM)
+            #ifdef __cplusplus
             src->source = (void*) ppm_source_create();
+            #else
+            src->source = (void*) ppm_source_create_default();
+            #endif
         else if(src_type == PDM)
+            #ifdef __cplusplus
             src->source = (void*) pdm_source_create();
+            #else
+            src->source = (void*) pdm_source_create_default();
+            #endif
     }
     return src;
 }
+#ifdef __cplusplus
 real_source real_source_create(void* source, uint8_t itemsize, uint8_t channels, wav_mode_t special){
-    real_source src = (real_source)malloc(sizeof(real_source_s));
-    memset(src, 0, sizeof(real_source_s));
+#else
+real_source real_source_create_from_source(void* source, uint8_t itemsize, uint8_t channels, wav_mode_t special){
+#endif
+    real_source src = (real_source)malloc(sizeof(struct real_source_s));
+    memset(src, 0, sizeof(struct real_source_s));
     if (src == NULL) return src;
     src->adm_type = (real_path_t)((uint8_t *)source)[0];
     src->sd_type = ((uint8_t *)source)[1];
@@ -1898,13 +2178,13 @@ void real_source_reset(real_source src){
         if(src->src_type == CONSTANT)
             constant_source_reset((constant_source)src->source);
         else if(src->src_type == SQUARE)
-            square_source_reset((square_source)src->source);
+            square_source_reset((square_source)src->source,NULL);
         else if(src->src_type == SAWTOOTH)
-            sawtooth_source_reset((sawtooth_source)src->source);
+            sawtooth_source_reset((sawtooth_source)src->source,NULL);
         else if(src->src_type == TRIANGLE)
-            triangle_source_reset((triangle_source)src->source);
+            triangle_source_reset((triangle_source)src->source,NULL);
         else if(src->src_type == SINUSOID)
-            sinusoid_source_reset((sinusoid_source)src->source);
+            sinusoid_source_reset((sinusoid_source)src->source,NULL);
     }
     else if(src->adm_type == MESSAGE){
     }
@@ -2219,44 +2499,92 @@ int real_source_get_stream(real_source src, float *buf, uint32_t len){
     }
     return -3;
 }
+#ifdef __cplusplus
 int real_source_get_stream_ptr(real_source src, float *ptr, uint32_t len, uint32_t &actual_len){
+#else
+int real_source_get_stream_ptr(real_source src, float *ptr, uint32_t len, uint32_t *actual_len){
+#endif
     if(src == NULL) return -1;
     if(src->source == NULL) return -2;
     if(src->adm_type == ANALOG){
         if(src->src_type == CONSTANT)
+            #ifdef __cplusplus
             return constant_source_get_stream_ptr((constant_source)src->source, ptr, len, actual_len);
+            #else
+            return constant_source_get_stream_ptr((constant_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == SQUARE)
+            #ifdef __cplusplus
             return square_source_get_stream_ptr((square_source)src->source, ptr, len, actual_len);
+            #else
+            return square_source_get_stream_ptr((square_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == SAWTOOTH)
+            #ifdef __cplusplus
             return sawtooth_source_get_stream_ptr((sawtooth_source)src->source, ptr, len, actual_len);
+            #else
+            return sawtooth_source_get_stream_ptr((sawtooth_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == TRIANGLE)
+            #ifdef __cplusplus
             return triangle_source_get_stream_ptr((triangle_source)src->source, ptr, len, actual_len);
+            #else
+            return triangle_source_get_stream_ptr((triangle_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == SINUSOID)
+            #ifdef __cplusplus
             return sinusoid_source_get_stream_ptr((sinusoid_source)src->source, ptr, len, actual_len);
+            #else
+            return sinusoid_source_get_stream_ptr((sinusoid_source)src->source, ptr, len, actual_len);
+            #endif
     }
     else if(src->adm_type == MESSAGE){
         return -4;
     }
     else{
         if(src->src_type == BYTES)
+            #ifdef __cplusplus
             return bytes_source_get_stream_ptr((bytes_source)src->source, ptr, len, actual_len);
+            #else
+            return bytes_source_get_stream_ptr((bytes_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == MASK)
+            #ifdef __cplusplus
             return mask_source_get_stream_ptr((mask_source)src->source, ptr, len, actual_len);
+            #else
+            return mask_source_get_stream_ptr((mask_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == MANCHESTER)
+            #ifdef __cplusplus
             return manchester_source_get_stream_ptr((manchester_source)src->source, ptr, len, actual_len);
+            #else
+            return manchester_source_get_stream_ptr((manchester_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == PPM)
+            #ifdef __cplusplus
             return ppm_source_get_stream_ptr((ppm_source)src->source, ptr, len, actual_len);
+            #else
+            return ppm_source_get_stream_ptr((ppm_source)src->source, ptr, len, actual_len);
+            #endif
         else if(src->src_type == PDM)
+            #ifdef __cplusplus
             return pdm_source_get_stream_ptr((pdm_source)src->source, ptr, len, actual_len);
+            #else
+            return pdm_source_get_stream_ptr((pdm_source)src->source, ptr, len, actual_len);
+            #endif
     }
     return -3;
 }
 
 //------------------------------------------------
 
+#ifdef __cplusplus
 ammod ammod_create(){//default don't mod
-    ammod mod = (ammod) malloc(sizeof(ammod_s));
-    memset(mod, 0, sizeof(ammod_s));
+#else
+ammod ammod_create_default(){//default don't mod
+#endif
+    ammod mod = (ammod) malloc(sizeof(struct ammod_s));
+    memset(mod, 0, sizeof(struct ammod_s));
     if(mod == NULL) return mod;
     mod->bias_src = real_source_create(ANALOG, STATIC, CONSTANT, sizeof(float), 1, NONE);
     constant_source_destroy((constant_source*)&(mod->bias_src->source));
@@ -2270,8 +2598,8 @@ ammod ammod_create(){//default don't mod
     return mod;
 }
 ammod ammod_create(double mod_idx, double bias, double freq){
-    ammod mod = (ammod) malloc(sizeof(ammod_s));
-    memset(mod, 0, sizeof(ammod_s));
+    ammod mod = (ammod) malloc(sizeof(struct ammod_s));
+    memset(mod, 0, sizeof(struct ammod_s));
     if(mod == NULL) return mod;
     mod->bias_src = real_source_create(ANALOG, STATIC, CONSTANT, sizeof(float), 1, NONE);
     constant_source_destroy((constant_source*)&(mod->bias_src->source));
@@ -2297,7 +2625,7 @@ void ammod_destroy(ammod *src){
     }
     free((*src));
 }
-int ammod_step(ammod mod, float *out=NULL){
+int ammod_step(ammod mod, float *out){
     if (mod == NULL) return 1;
     float mod_idx;
     float bias;
@@ -2310,7 +2638,7 @@ int ammod_step(ammod mod, float *out=NULL){
     }
     return 0;
 }
-int ammod_nstep(ammod mod, uint32_t n, float *out=NULL){
+int ammod_nstep(ammod mod, uint32_t n, float *out){
     if (mod == NULL) return 1;
     float *mod_idx;
     float *bias;
@@ -2339,9 +2667,13 @@ int ammod_nstep(ammod mod, uint32_t n, float *out=NULL){
 
 //------------------------------------------------
 
+#ifdef __cplusplus
 real_path real_path_create(){
-    real_path path = (real_path)malloc(sizeof(real_path_s));
-    memset(path, 0, sizeof(real_path_s));
+#else
+real_path real_path_create_default(){
+    #endif
+    real_path path = (real_path)malloc(sizeof(struct real_path_s));
+    memset(path, 0, sizeof(struct real_path_s));
     if(path == NULL) return path;
     path->input_fs = 100e3;
     path->output_fs = 1e6;
@@ -2352,17 +2684,25 @@ real_path real_path_create(){
     path->fc_offset = 0.0;
     path->buf_len = 1 << liquid_nextpow2((unsigned int)ceilf(path->output_fs/path->input_fs));
     path->buffer = cbufferf_create(path->buf_len);
+    #ifdef __cplusplus
     path->source = real_source_create();
+    #else
+    path->source = real_source_create_default();
+    #endif
     path->modulator = NULL;
     path->resampler = msresamp_rrrf_create(path->output_fs/path->input_fs, 60.0f);
+    #ifdef __cplusplus
     std::cout << "real_path using resampler\n";
+    #else
+    printf("real_path using resampler\n");
+    #endif
     return path;
 }
 real_path real_path_create(float input_fs, float output_fs, float bandwidth, float max_freq,
                             float baud_rate, float gain, float fc_offset,
                             real_source source, ammod modulator, msresamp_rrrf resampler){
-    real_path path = (real_path)malloc(sizeof(real_path_s));
-    memset(path, 0, sizeof(real_path_s));
+    real_path path = (real_path)malloc(sizeof(struct real_path_s));
+    memset(path, 0, sizeof(struct real_path_s));
     if(path == NULL) return path;
     if(source == NULL){
         free(path);
@@ -2386,7 +2726,11 @@ real_path real_path_create(float input_fs, float output_fs, float bandwidth, flo
             path->resampler = msresamp_rrrf_create(path->output_fs/path->input_fs, 60.0f);
             path->buf_len = 1 << liquid_nextpow2((unsigned int)ceilf(path->output_fs/path->input_fs));
             path->buffer = cbufferf_create(path->buf_len);
+            #ifdef __cplusplus
             std::cout << "real_path using resampler\n";
+            #else
+            printf("real_path using resampler\n");
+            #endif
         }
         else{
             path->buf_len = 0;
@@ -2394,7 +2738,11 @@ real_path real_path_create(float input_fs, float output_fs, float bandwidth, flo
         }
     }
     else{
+        #ifdef __cplusplus
         std::cout << "real_path using resampler\n";
+        #else
+        printf("real_path using resampler\n");
+        #endif
         path->buf_len = 1 << liquid_nextpow2((unsigned int)ceilf(msresamp_rrrf_get_rate(resampler)));
         path->buffer = cbufferf_create(path->buf_len);
         path->resampler = resampler;
@@ -2471,9 +2819,13 @@ int real_path_nstep(real_path path, uint32_t n, float *out){
 
 //------------------------------------------------
 
+#ifdef __cplusplus
 amgen amgen_create(){
-    amgen gen = (amgen)malloc(sizeof(amgen_s));
-    memset(gen, 0, sizeof(amgen_s));
+#else
+amgen amgen_create_default(){
+    #endif
+    amgen gen = (amgen)malloc(sizeof(struct amgen_s));
+    memset(gen, 0, sizeof(struct amgen_s));
     if(gen == NULL) return gen;
     gen->num_paths = 1;
     gen->mod_idx = real_source_create(ANALOG,STATIC,CONSTANT,sizeof(float),1,NONE);
@@ -2484,19 +2836,23 @@ amgen amgen_create(){
     gen->path_gains[0] = 1.0;
     gen->paths = (real_path*)malloc(sizeof(real_path));
     memset(gen->paths, 0, sizeof(real_path));
+    #ifdef __cplusplus
     gen->paths[0] = real_path_create();
+    #else
+    gen->paths[0] = real_path_create_default();
+    #endif
     return gen;
 }
 amgen amgen_create(uint8_t num_paths, float mod_idx, double* gains, real_path *paths){
     if(paths == NULL) return NULL;
-    amgen gen = (amgen)malloc(sizeof(amgen_s));
-    memset(gen, 0, sizeof(amgen_s));
+    amgen gen = (amgen)malloc(sizeof(struct amgen_s));
+    memset(gen, 0, sizeof(struct amgen_s));
     if(gen == NULL) return gen;
     gen->num_paths = num_paths;
     gen->paths = (real_path*)malloc(num_paths*sizeof(real_path));
     gen->mod_idx = real_source_create(ANALOG,STATIC,CONSTANT,sizeof(float),1,NONE);
     double h = mod_idx;
-    real_source_set(gen->mod_idx,&h);
+    real_source_set(gen->mod_idx,&h,NULL);
 
     if(gains == NULL){
         gen->path_gains = (double*)malloc(num_paths*sizeof(double));
@@ -2540,7 +2896,11 @@ int amgen_step(amgen gen, float *out){
     }
     return 0;
 }
+#ifdef __cplusplus
 int amgen_nstep(amgen gen, uint32_t n, float *out){
+#else
+int amgen_nstepf(amgen gen, uint32_t n, float *out){
+#endif
     if (gen == NULL) return 1;
     if (gen->num_paths == 0) return 2;
     if(out != NULL){
@@ -2563,7 +2923,7 @@ int amgen_nstep(amgen gen, uint32_t n, float *out){
     }
     return 0;
 }
-int amgen_nstep(amgen gen, uint32_t n, std::complex<float> *out){
+int amgen_nstep(amgen gen, uint32_t n, liquid_float_complex *out){
     if (gen == NULL) return 1;
     if (gen->num_paths == 0) return 2;
     if(out != NULL){
@@ -2579,7 +2939,11 @@ int amgen_nstep(amgen gen, uint32_t n, std::complex<float> *out){
             }
         }
         for(uint32_t samp = 0; samp < n; samp++){
+            #ifdef __cplusplus
             out[samp] = std::complex<float>(base[samp],0.f);
+            #else
+            out[samp] = base[samp] + 0.f*I;
+            #endif
         }
     }
     else{
@@ -2592,21 +2956,33 @@ int amgen_nstep(amgen gen, uint32_t n, std::complex<float> *out){
 
 //------------------------------------------------
 
+#ifdef __cplusplus
 fmmod fmmod_create(){
-    fmmod mod = (fmmod) malloc(sizeof(fmmod_s));
-    memset(mod, 0, sizeof(fmmod_s));
+#else
+fmmod fmmod_create_default(){
+    #endif
+    fmmod mod = (fmmod) malloc(sizeof(struct fmmod_s));
+    memset(mod, 0, sizeof(struct fmmod_s));
     if(mod == NULL) return mod;
+    #ifdef __cplusplus
     mod->tone = real_source_create();// sinusoid amp=1, fc= 0.1
+    #else
+    mod->tone = real_source_create_default();// sinusoid amp=1, fc= 0.1
+    #endif
     mod->_mod_idx = real_source_create(ANALOG, STATIC, CONSTANT, sizeof(float), 1, NONE);
     constant_source_destroy((constant_source*)&(mod->_mod_idx->source));
     mod->_mod_idx->source = (void*)constant_source_create(0.25,0);
     return mod;
 }
 fmmod fmmod_create(float mod_idx){
-    fmmod mod = (fmmod) malloc(sizeof(fmmod_s));
-    memset(mod, 0, sizeof(fmmod_s));
+    fmmod mod = (fmmod) malloc(sizeof(struct fmmod_s));
+    memset(mod, 0, sizeof(struct fmmod_s));
     if(mod == NULL) return mod;
+    #ifdef __cplusplus
     mod->tone = real_source_create();// sinusoid amp=1, fc= 0.1
+    #else
+    mod->tone = real_source_create_default();// sinusoid amp=1, fc= 0.1
+    #endif
     mod->_mod_idx = real_source_create(ANALOG, STATIC, CONSTANT, sizeof(float), 1, NONE);
     constant_source_destroy((constant_source*)&(mod->_mod_idx->source));
     mod->_mod_idx->source = (void*)constant_source_create(mod_idx,0);
@@ -2625,13 +3001,17 @@ void fmmod_destroy(fmmod *mod){
     }
     free((*mod));
 }
-int fmmod_step(fmmod mod, float mesg, std::complex<float> *out){
+int fmmod_step(fmmod mod, float mesg, liquid_float_complex *out){
     if(mod == NULL) return 1;
     if(mod->tone == NULL) return 2;
     if(mod->tone->source == NULL) return 3;
     sinusoid_source ptr = (sinusoid_source)mod->tone->source;
     if(out != NULL){
+        #ifdef __cplusplus
         *out = std::polar(1.0,ptr->_phi);
+        #else
+        *out = cexp(ptr->_phi*I);
+        #endif
     }
     float mod_idx;
     real_source_step(mod->_mod_idx, &mod_idx);
@@ -2640,7 +3020,7 @@ int fmmod_step(fmmod mod, float mesg, std::complex<float> *out){
     sinusoid_source_center(ptr);
     return 0;
 }
-int fmmod_nstep(fmmod mod, uint32_t n, float *mesg, std::complex<float> *out){
+int fmmod_nstep(fmmod mod, uint32_t n, float *mesg, liquid_float_complex *out){
     if(mod == NULL) return 1;
     if(mod->tone == NULL) return 2;
     if(mod->tone->source == NULL) return 3;
@@ -2655,7 +3035,11 @@ int fmmod_nstep(fmmod mod, uint32_t n, float *mesg, std::complex<float> *out){
     }
     if(out != NULL){
         for(uint32_t idx = 0; idx < n; idx++){
+            #ifdef __cplusplus
             out[idx] = std::polar(1.0,ptr->_phi);
+            #else
+            out[idx] = cexp(ptr->_phi*I);
+            #endif
             sinusoid_source_incr(ptr, &s[idx], NULL);
             sinusoid_source_center(ptr);
         }
@@ -2672,17 +3056,29 @@ int fmmod_nstep(fmmod mod, uint32_t n, float *mesg, std::complex<float> *out){
 
 //------------------------------------------------
 
+#ifdef __cplusplus
 fmgen fmgen_create(){
-    fmgen gen = (fmgen) malloc(sizeof(fmgen_s));
-    memset(gen, 0, sizeof(fmgen_s));
+#else
+fmgen fmgen_create_default(){
+    #endif
+    fmgen gen = (fmgen) malloc(sizeof(struct fmgen_s));
+    memset(gen, 0, sizeof(struct fmgen_s));
     if(gen == NULL) return gen;
+    #ifdef __cplusplus
     gen->source = amgen_create();
+    #else
+    gen->source = amgen_create_default();
+    #endif
     if(gen->source == NULL){
         free(gen);
         gen = NULL;
         return gen;
     }
+    #ifdef __cplusplus
     gen->mod = fmmod_create();
+    #else
+    gen->mod = fmmod_create_default();
+    #endif
     if(gen->mod == NULL){
         amgen_destroy(&(gen->source));
         free(gen);
@@ -2695,8 +3091,8 @@ fmgen fmgen_create(){
 }
 fmgen fmgen_create(float mod_idx, amgen source, msresamp_rrrf resampler){
     if(source == NULL) return NULL;
-    fmgen gen = (fmgen) malloc(sizeof(fmgen_s));
-    memset(gen, 0, sizeof(fmgen_s));
+    fmgen gen = (fmgen) malloc(sizeof(struct fmgen_s));
+    memset(gen, 0, sizeof(struct fmgen_s));
     if(gen == NULL) return gen;
     gen->source = source;
     gen->mod = fmmod_create(mod_idx);
@@ -2704,7 +3100,11 @@ fmgen fmgen_create(float mod_idx, amgen source, msresamp_rrrf resampler){
     gen->buffer = NULL;
     gen->resampler = resampler;
     if(resampler != NULL){
+        #ifdef __cpluscplus
         std::cout << "fmgen is using resampler\n";
+        #else
+        printf("fmgen is using resampler\n");
+        #endif
         gen->buf_len = 1 << liquid_nextpow2((unsigned int)ceilf(msresamp_rrrf_get_rate(resampler)));
         gen->buffer = cbufferf_create(gen->buf_len);
     }
@@ -2720,34 +3120,48 @@ void fmgen_destroy(fmgen *gen){
     free((*gen));
     *gen = NULL;
 }
-int fmgen_step(fmgen gen, std::complex<float> *out){
+int fmgen_step(fmgen gen, liquid_float_complex *out){
     if(gen == NULL) return 1;
     if(gen->source == NULL) return 2;
     if(gen->mod == NULL) return 3;
     float mesg = 0.;
     if(gen->resampler != NULL){
+        #ifdef __cplusplus
         std::cout << "fmgen_step WANTS TO USE resampler but is NULL\n";
+        #else
+        printf("fmgen_step WANTS TO USE resampler but is NULL\n");
+        #endif
         return 4; // need to actually use this --> needed if the mod_idx can be >~ 0.5;
     }
     else{
         amgen_step(gen->source, &mesg);
+        #ifdef __cplusplus
         if(std::abs(mesg) > 1.0) std::cout << "fmgen_step value exceeds 1.0 limit from amgen: " << mesg << " with n("<<(int)gen->source->num_paths<<") paths\n";
+        #endif
         fmmod_step(gen->mod, mesg, out);
     }
     return 0;
 }
-int fmgen_nstep(fmgen gen, uint32_t n, std::complex<float> *out){
+int fmgen_nstep(fmgen gen, uint32_t n, liquid_float_complex *out){
     if(gen == NULL) return 1;
     if(gen->source == NULL) return 2;
     if(gen->mod == NULL) return 3;
     float *mesg = (float*)malloc(n*sizeof(float));
     memset(mesg, 0, n*sizeof(float));
     if(gen->resampler != NULL){
+        #ifdef __cplusplus
         std::cout << "fmgen_nstep WANTS TO USE resampler but is NULL\n";
+        #else
+        printf("fmgen_nstep WANTS TO USE resampler but is NULL\n");
+        #endif
         return 4; // need to actually use this --> needed if the mod_idx can be >~ 0.85;
     }
     else{
+        #ifdef __cplusplus
         amgen_nstep(gen->source, n, mesg);
+        #else
+        amgen_nstepf(gen->source, n, mesg);
+        #endif
         fmmod_nstep(gen->mod, n, mesg, out);
     }
     free(mesg);

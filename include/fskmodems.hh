@@ -6,8 +6,11 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
-
+#ifdef __cplusplus
 #include <complex>
+#else
+#include <complex.h>
+#endif
 #include "liquid.h"
 
 // report error specifically for invalid object configuration 
@@ -133,58 +136,14 @@ struct fsk_type_s {
     unsigned int bps;           // modulation depth (e.g. 1)
 };
 
-const struct fsk_type_s fsk_types[33] = {
-    // name       fullname        scheme          bps
-
-    // unknown
-    {"unknown_fsk","unknown_fsk",              LIQUID_FSK_UNKNOWN, 0},
-
-    // phase-shift keying
-    {"fsk2",      "frequency-shift keying (2)",   LIQUID_MODEM_FSK2,  1},
-    {"fsk4",      "frequency-shift keying (4)",   LIQUID_MODEM_FSK4,  2},
-    {"fsk8",      "frequency-shift keying (8)",   LIQUID_MODEM_FSK8,  3},
-    {"fsk16",     "frequency-shift keying (16)",  LIQUID_MODEM_FSK16, 4},
-    {"fsk32",     "frequency-shift keying (32)",  LIQUID_MODEM_FSK32, 5},
-    {"fsk64",     "frequency-shift keying (64)",  LIQUID_MODEM_FSK64, 6},
-    {"fsk128",    "frequency-shift keying (128)", LIQUID_MODEM_FSK128, 7},
-    {"fsk256",    "frequency-shift keying (256)", LIQUID_MODEM_FSK256, 8},
-
-    // differential phase-shift keying
-    {"cpfsk2",     "continuous-phase frequency-shift keying (2)",   LIQUID_MODEM_CPFSK2,  1},
-    {"cpfsk4",     "continuous-phase frequency-shift keying (4)",   LIQUID_MODEM_CPFSK4,  2},
-    {"cpfsk8",     "continuous-phase frequency-shift keying (8)",   LIQUID_MODEM_CPFSK8,  3},
-    {"cpfsk16",    "continuous-phase frequency-shift keying (16)",  LIQUID_MODEM_CPFSK16, 4},
-    {"cpfsk32",    "continuous-phase frequency-shift keying (32)",  LIQUID_MODEM_CPFSK32, 5},
-    {"cpfsk64",    "continuous-phase frequency-shift keying (64)",  LIQUID_MODEM_CPFSK64, 6},
-    {"cpfsk128",   "continuous-phase frequency-shift keying (128)", LIQUID_MODEM_CPFSK128, 7},
-    {"cpfsk256",   "continuous-phase frequency-shift keying (256)", LIQUID_MODEM_CPFSK256, 8},
-
-    // minimum-shift keying
-    {"msk",        "minimum-shift keying (2)",   LIQUID_MODEM_MSK2,  1},
-    {"scpfsk4",    "minimum-shift keying (4)",   LIQUID_MODEM_MSK4,  2},
-    {"scpfsk8",    "minimum-shift keying (8)",   LIQUID_MODEM_MSK8,  3},
-    {"scpfsk16",   "minimum-shift keying (16)",  LIQUID_MODEM_MSK16, 4},
-    {"scpfsk32",   "minimum-shift keying (32)",  LIQUID_MODEM_MSK32, 5},
-    {"scpfsk64",   "minimum-shift keying (64)",  LIQUID_MODEM_MSK64, 6},
-    {"scpfsk128",  "minimum-shift keying (128)", LIQUID_MODEM_MSK128, 7},
-    {"scpfsk256",  "minimum-shift keying (256)", LIQUID_MODEM_MSK256, 8},
-
-    // quadrature amplitude-shift keying
-    {"gmsk",       "gaussian minimum-shift keying (2)",   LIQUID_MODEM_GMSK2,  1},
-    {"gcpfsk4",    "gaussian minimum-shift keying (4)",   LIQUID_MODEM_GMSK4,  2},
-    {"gcpfsk8",    "gaussian minimum-shift keying (8)",   LIQUID_MODEM_GMSK8,  3},
-    {"gcpfsk16",   "gaussian minimum-shift keying (16)",  LIQUID_MODEM_GMSK16, 4},
-    {"gcpfsk32",   "gaussian minimum-shift keying (32)",  LIQUID_MODEM_GMSK32, 5},
-    {"gcpfsk64",   "gaussian minimum-shift keying (64)",  LIQUID_MODEM_GMSK64, 6},
-    {"gcpfsk128",  "gaussian minimum-shift keying (128)", LIQUID_MODEM_GMSK128, 7},
-    {"gcpfsk256",  "gaussian minimum-shift keying (256)", LIQUID_MODEM_GMSK256, 8}
-};
+#define FSK_TYPE_COUNT 33
+extern const struct fsk_type_s fsk_types[];
 
 inline fsk_scheme liquid_getopt_str2fsk(const char * _str)
 {
     // compare each string to short name
     unsigned int i;
-    for (i=0; i<33; i++) {
+    for (i=0; i<FSK_TYPE_COUNT; i++) {
         if (strcmp(_str,fsk_types[i].name)==0)
             return (fsk_scheme)i;
     }
@@ -227,14 +186,14 @@ inline int liquid_print_fsk_modulation_schemes()
 
     // print all available modem schemes
     printf("          ");
-    for (i=1; i<33; i++) {
+    for (i=1; i<FSK_TYPE_COUNT; i++) {
         printf("%s", fsk_types[i].name);
 
-        if (i != 33-1)
+        if (i != FSK_TYPE_COUNT-1)
             printf(", ");
 
         len += strlen(fsk_types[i].name);
-        if (len > 48 && i != 33-1) {
+        if (len > 48 && i != FSK_TYPE_COUNT-1) {
             len = 10;
             printf("\n          ");
         }
