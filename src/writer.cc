@@ -84,6 +84,7 @@ writer writer_create(write_mode_t _mode, const char* _filepath, uint8_t _threade
     w->filename = (char*)malloc(flen+1);
     memcpy(w->filename,_filepath,flen+1);
     w->n_threads = _threaded;
+    w->fptr = fopen(w->filename,"wb");
     return w;
 }
 void writer_destroy(writer *w){
@@ -95,25 +96,44 @@ void writer_destroy(writer *w){
     for (uint8_t tidx = 0; tidx < (*w)->n_threads; tidx++){
         thread_state_join(&(*w)->_state[tidx]);
     }
+    writer_close(*w);
+    free(*w);
 }
 uint64_t writer_store(writer w, container c){
     if(w->n_threads){}
     else{
         //block until written
-        fwrite(c->ptr, c->size, 1, w->fptr);
+        fwrite(c->ptr, get_empty_content_size(c->type), c->size, w->fptr);
     }
     return 0;
 }
 uint64_t writer_store_head(writer w, container c, uint64_t head){
-    return head;
+    if(w->fptr == NULL) return 0;
+    size_t tru = fwrite(c->ptr, get_empty_content_size(c->type), head, w->fptr);
+    return tru;
 }
 uint64_t writer_store_tail(writer w, container c, uint64_t tail){
-    return tail;
+    if(w->fptr == NULL) return 0;
+    uint8_t *qptr = (uint8_t*)c->ptr;
+    size_t itemsize = get_empty_content_size(c->type);
+    size_t bytes = tail*itemsize;
+    size_t offset = c->size*itemsize-bytes;
+    size_t tru = fwrite(&qptr[offset], itemsize, tail, w->fptr);
+    return tru;
 }
 uint64_t writer_store_range(writer w, container c, uint64_t skip, uint64_t cut){
+    if(w->fptr == NULL) return 0;
+    uint8_t *qptr = (uint8_t*)c->ptr;
+    size_t itemsize = get_empty_content_size(c->type);
+    size_t offset = skip*itemsize;
+    size_t items = (cut-skip);
+    size_t tru = fwrite(&qptr[offset], itemsize, items, w->fptr);
     return cut-skip;
 }
 void writer_close(writer w){
+    if(w->fptr == NULL) return;
+    fclose(w->fptr);
+    w->fptr = NULL;
 }
 
 
