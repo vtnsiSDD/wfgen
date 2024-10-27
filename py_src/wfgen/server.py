@@ -687,7 +687,7 @@ def parse_args():
     p.add_argument('--net-config',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)),'default_server.json'),
         type=str,help=f'Json file with a server network configuration (def: default_server.json)')
-    p.add_argument("--truth-dir",default=None,type=str,help="Where should truth dump to? (def: /tmp/wfgen_reports")
+    p.add_argument("--truth-dir",default=None,type=str,help="Where should truth dump to? (def: /tmp/wfgen_reports)")
     p.add_argument("--uhd-args",default=[],type=str,action='append',help="Limit to devices whose flag provided will find (def: all uhd devices)")
     p.add_argument("--log-server",action='store_true',help="Use if a log-server is active (meant for debugging)")
     return p.parse_args()
