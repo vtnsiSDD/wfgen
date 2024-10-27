@@ -175,6 +175,10 @@ def run(network_interface:ServerNet,
     :param addr: string of the IP address to bind with (defaults to internet connection)
     :param port: the integer value of the port to bind with (defaults to 50000)
     """
+    if root_dir is None:
+        root_dir = '/tmp/wfgen_reports'
+    if not os.path.exists(root_dir):
+        os.makedirs(root_dir)
     log_c = logger_client("server.run") if use_log else fake_log("server.run",cout=False)
     global sp_failback
     print("Starting server...",end='')
@@ -683,6 +687,7 @@ def parse_args():
     p.add_argument('--net-config',
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)),'default_server.json'),
         type=str,help=f'Json file with a server network configuration (def: default_server.json)')
+    p.add_argument("--truth-dir",default=None,type=str,help="Where should truth dump to? (def: /tmp/wfgen_reports")
     p.add_argument("--uhd-args",default=[],type=str,action='append',help="Limit to devices whose flag provided will find (def: all uhd devices)")
     p.add_argument("--log-server",action='store_true',help="Use if a log-server is active (meant for debugging)")
     return p.parse_args()
@@ -691,7 +696,7 @@ def main():
     args = parse_args()
     network = ServerNet(filepath=args.net_config)
     try:
-        run(network,args.uhd_args,use_log=args.log_server)
+        run(network,args.uhd_args,root_dir=args.truth_dir,use_log=args.log_server)
     except:
         import traceback
         traceback.print_exc()
